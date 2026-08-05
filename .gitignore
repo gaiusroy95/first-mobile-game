@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+
+# expo
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/web-build/
+
+# native
+apps/mobile/ios/
+apps/mobile/android/
+
+# game-engine build output
+packages/game-engine/dist/
+packages/game-engine/dist-node/
+apps/mobile/src/game/gameBundle.generated.ts
+
+# shared-types build output
+packages/shared-types/dist/
+
+# backend build output
+apps/backend/dist/
+
+# env
+.env
+.env.local
+*.env
+
+# logs
+npm-debug.log*
+*.log
+
+# os
+.DS_Store
+
+# editor
+.vscode/*
+!.vscode/extensions.json

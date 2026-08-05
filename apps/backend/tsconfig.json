@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2021",
+    "lib": ["ES2021"],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "strict": true,
+    // TypeORM entities and Nest DTOs are populated by the ORM/ValidationPipe,
+    // never by their own constructor - the standard NestJS+TypeORM
+    // convention is to turn this one strict check off rather than add a
+    // meaningless `!` to every column/field.
+    "strictPropertyInitialization": false,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "incremental": true
+  },
+  "include": ["src/**/*.ts"]
+}
