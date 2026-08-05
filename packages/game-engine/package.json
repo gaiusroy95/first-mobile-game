@@ -1,0 +1,30 @@
+{
+  "name": "@battle-formation/game-engine",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist-node/index.js",
+  "types": "dist-node/index.d.ts",
+  "exports": {
+    ".": {
+      "react-native": "./src/simulation/index.ts",
+      "import": "./src/simulation/index.ts",
+      "default": "./dist-node/index.js"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:node": "tsc -p tsconfig.build.json && echo '{\"type\":\"commonjs\"}' > dist-node/package.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@battle-formation/shared-types": "*",
+    "phaser": "^3.87.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vite": "^5.4.9",
+    "vite-plugin-singlefile": "^2.0.3"
+  }
+}

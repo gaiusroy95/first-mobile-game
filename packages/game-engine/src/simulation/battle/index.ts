@@ -1,0 +1,10 @@
+export { BattleManager, type BattleState } from "./BattleManager";
+export { simulateBattle } from "./simulateBattle";
+export { HeroEntity } from "./HeroEntity";
+export { CombatComponent } from "./CombatComponent";
+export { calculateDamage } from "./DamageCalculator";
+export { selectNearest } from "./TargetSelection";
+export { TICK_RATE, MAX_TICKS, MOVEMENT_STEP_COST } from "./constants";
+export type { ActiveEffect } from "./StatusEffect";
+export * from "./ai";
+export * from "./skills";
