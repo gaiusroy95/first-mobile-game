@@ -1,8 +1,10 @@
-import type { INestApplicationContext } from "@nestjs/common";
+import { Logger, type INestApplicationContext } from "@nestjs/common";
 import { IoAdapter } from "@nestjs/platform-socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import IORedis from "ioredis";
 import type { ServerOptions, Server } from "socket.io";
+
+const logger = new Logger("RedisIoAdapter");
 
 /**
  * Without this, `server.emit()`/`server.to(room).emit()` only reaches
@@ -24,6 +26,11 @@ export class RedisIoAdapter extends IoAdapter {
   async connectToRedis(redisUrl: string): Promise<void> {
     const pubClient = new IORedis(redisUrl);
     const subClient = pubClient.duplicate();
+    // Same reasoning as RedisService: without a listener here, a
+    // connection failure surfaces as unbounded "missing 'error' handler"
+    // console spam instead of one clear, attributable log line.
+    pubClient.on("error", (error) => logger.error(`Redis pub client error: ${error.message}`));
+    subClient.on("error", (error) => logger.error(`Redis sub client error: ${error.message}`));
     this.adapterConstructor = createAdapter(pubClient, subClient);
   }
 
