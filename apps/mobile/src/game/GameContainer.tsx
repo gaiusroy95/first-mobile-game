@@ -1,54 +1,28 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
-import type {
-  BattleRewards,
-  BridgeInboundMessage,
-  BridgeOutboundMessage,
-  Formation,
-  PlayerSide,
-  RosterHero,
-} from "@battle-formation/shared-types";
 import { GAME_HTML } from "./gameBundle.generated";
+import { useGameBridgeTransport } from "./useGameBridgeTransport";
+import type { GameContainerHandle, GameContainerProps } from "./GameContainer.types";
 
-export interface GameContainerHandle {
-  loadHeroes: (heroes: RosterHero[]) => void;
-  startFormationPhase: (durationSeconds: number) => void;
-  setFormation: (formations: [Formation, Formation]) => void;
-  startBattle: (seed: number) => void;
-}
-
-interface GameContainerProps {
-  onFormationConfirmed: (formation: Formation) => void;
-  onBattleFinished: (winner: PlayerSide, rewards: BattleRewards) => void;
-  onError?: (message: string) => void;
-}
+export type { GameContainerHandle } from "./GameContainer.types";
 
 /**
- * The ONLY component in the app that knows Phaser lives inside a WebView.
- * Screens never touch postMessage or a WebView ref - they call the
- * imperative handle (loadHeroes/startFormationPhase/setFormation/
- * startBattle) and receive results through onFormationConfirmed/
- * onBattleFinished/onError. Swapping the renderer for something other than
- * Phaser+WebView later only means rewriting this one file; every screen
- * that uses <GameContainer> stays untouched.
+ * Native host: Phaser lives inside a real WebView. See GameContainer.web.tsx
+ * for the browser counterpart (a plain iframe) - React Native's bundler
+ * resolves "./GameContainer" to whichever of these two files matches the
+ * platform being built, so nothing that renders <GameContainer> needs to
+ * know or care which one it got.
  */
 export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>(
   ({ onFormationConfirmed, onBattleFinished, onError }, ref) => {
     const webViewRef = useRef<WebView>(null);
-    const gameReady = useRef(false);
-    const pendingMessages = useRef<BridgeInboundMessage[]>([]);
 
-    // The WebView's JS (and its message listener) isn't guaranteed to be
-    // running yet when a screen calls loadHeroes/startBattle right after
-    // mount, so commands sent before GAME_READY are queued and flushed once
-    // it arrives, instead of being silently dropped.
-    const send = (message: BridgeInboundMessage) => {
-      if (gameReady.current) {
-        webViewRef.current?.postMessage(JSON.stringify(message));
-      } else {
-        pendingMessages.current.push(message);
-      }
-    };
+    const { send, handleRawMessage } = useGameBridgeTransport({
+      postRaw: (raw) => webViewRef.current?.postMessage(raw),
+      onFormationConfirmed,
+      onBattleFinished,
+      onError,
+    });
 
     useImperativeHandle(ref, () => ({
       loadHeroes: (heroes) => send({ type: "LOAD_HEROES", payload: { heroes } }),
@@ -58,33 +32,7 @@ export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>
       startBattle: (seed) => send({ type: "START_BATTLE", payload: { seed } }),
     }));
 
-    const handleMessage = (event: WebViewMessageEvent) => {
-      let message: BridgeOutboundMessage;
-      try {
-        message = JSON.parse(event.nativeEvent.data) as BridgeOutboundMessage;
-      } catch {
-        return;
-      }
-
-      switch (message.type) {
-        case "GAME_READY":
-          gameReady.current = true;
-          for (const queued of pendingMessages.current) {
-            webViewRef.current?.postMessage(JSON.stringify(queued));
-          }
-          pendingMessages.current = [];
-          break;
-        case "FORMATION_CONFIRMED":
-          onFormationConfirmed(message.payload.formation);
-          break;
-        case "BATTLE_FINISHED":
-          onBattleFinished(message.payload.winner, message.payload.rewards);
-          break;
-        case "RENDER_ERROR":
-          onError?.(message.payload.message);
-          break;
-      }
-    };
+    const handleMessage = (event: WebViewMessageEvent) => handleRawMessage(event.nativeEvent.data);
 
     return (
       <WebView

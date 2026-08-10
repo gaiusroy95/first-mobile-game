@@ -25,6 +25,18 @@ export function onInboundMessage(handler: InboundHandler): void {
   document.addEventListener("message", listener as EventListener);
 }
 
+/**
+ * Two hosts, same bundle: a native WebView (apps/mobile's GameContainer.tsx)
+ * injects `window.ReactNativeWebView`; a browser iframe
+ * (GameContainer.web.tsx) doesn't, so `window.parent.postMessage` - the
+ * standard way an iframe talks back to whatever embedded it - is the
+ * fallback. Neither host needs this file to know which one it is.
+ */
 export function sendOutboundMessage(message: BridgeOutboundMessage): void {
-  window.ReactNativeWebView?.postMessage(JSON.stringify(message));
+  const payload = JSON.stringify(message);
+  if (window.ReactNativeWebView) {
+    window.ReactNativeWebView.postMessage(payload);
+  } else if (window.parent !== window) {
+    window.parent.postMessage(payload, "*");
+  }
 }
