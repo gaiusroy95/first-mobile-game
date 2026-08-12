@@ -14,6 +14,9 @@ import { MatchmakingModule } from "./matchmaking/matchmaking.module";
 import { BattlesModule } from "./battles/battles.module";
 import { RankingModule } from "./ranking/ranking.module";
 import { RewardsModule } from "./rewards/rewards.module";
+import { AdventureModule } from "./adventure/adventure.module";
+import { EventsModule } from "./events/events.module";
+import { TournamentModule } from "./tournament/tournament.module";
 
 @Module({
   imports: [
@@ -27,9 +30,6 @@ import { RewardsModule } from "./rewards/rewards.module";
         type: "postgres",
         url: config.getOrThrow<string>("DATABASE_URL"),
         autoLoadEntities: true,
-        // Dev convenience only - schema changes in production go through
-        // migrations (`typeorm migration:generate`/`:run`), never
-        // synchronize, which can silently drop columns on a mismatch.
         synchronize: config.get<string>("NODE_ENV") !== "production",
       }),
     }),
@@ -43,6 +43,9 @@ import { RewardsModule } from "./rewards/rewards.module";
     BattlesModule,
     RankingModule,
     RewardsModule,
+    AdventureModule,
+    EventsModule,
+    TournamentModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

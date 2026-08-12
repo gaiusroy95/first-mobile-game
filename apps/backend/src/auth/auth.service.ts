@@ -5,6 +5,7 @@ import * as bcrypt from "bcrypt";
 import { Repository } from "typeorm";
 import type { AuthResponse } from "@battle-formation/shared-types";
 import { Player } from "../players/player.entity";
+import { HeroesService } from "../heroes/heroes.service";
 
 const PASSWORD_SALT_ROUNDS = 10;
 
@@ -12,7 +13,8 @@ const PASSWORD_SALT_ROUNDS = 10;
 export class AuthService {
   constructor(
     @InjectRepository(Player) private readonly players: Repository<Player>,
-    private readonly jwt: JwtService
+    private readonly jwt: JwtService,
+    private readonly heroes: HeroesService
   ) {}
 
   async register(username: string, password: string, displayName: string): Promise<AuthResponse> {
@@ -23,6 +25,7 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(password, PASSWORD_SALT_ROUNDS);
     const player = await this.players.save(this.players.create({ username, passwordHash, displayName }));
+    await this.heroes.grantStarterRoster(player.id);
     return this.issueSession(player);
   }
 

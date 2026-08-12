@@ -7,3 +7,14 @@ export function login(username: string, password: string): Promise<AuthResponse>
     body: JSON.stringify({ username, password }),
   });
 }
+
+export function register(
+  username: string,
+  password: string,
+  displayName: string
+): Promise<AuthResponse> {
+  return apiFetch<AuthResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ username, password, displayName }),
+  });
+}

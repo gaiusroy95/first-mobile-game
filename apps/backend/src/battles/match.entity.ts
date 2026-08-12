@@ -48,6 +48,10 @@ export class MatchEntity {
   @Column({ type: "varchar", default: "pending" })
   status: MatchStatus;
 
+  /** casual | ranked | adventure | event | tournament */
+  @Column({ type: "varchar", default: "casual" })
+  mode: string;
+
   /**
    * Set at match creation, enforced server-side in BattlesService -
    * without this, the 20s formation timer the client displays (see

@@ -9,6 +9,26 @@ import type { HeroDefinition } from "@battle-formation/shared-types";
  */
 export const heroDatabase: HeroDefinition[] = [
   {
+    id: "commander-01",
+    name: "Valen",
+    class: "commander",
+    rarity: "legendary",
+    baseStats: { hp: 130, attack: 18, defense: 14, attackSpeed: 1.1, range: 1, movementSpeed: 3 },
+    abilities: [
+      {
+        id: "rally",
+        name: "Rally",
+        description: "Bolsters nearby allies' attack for a short time.",
+        cooldown: 10,
+        kind: "buff",
+        stat: "attack",
+        power: 0.25,
+        duration: 5,
+        radius: 1,
+      },
+    ],
+  },
+  {
     id: "tank-01",
     name: "Bulwark",
     class: "tank",

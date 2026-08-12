@@ -1,6 +1,7 @@
 import type { PlayerSide } from "./battle";
 
 export type HeroClass =
+  | "commander"
   | "tank"
   | "knight"
   | "archer"
@@ -92,6 +93,8 @@ export interface OwnedHero {
   heroId: string;
   level: number;
   upgrades: string[];
+  /** Equipped cosmetic skin (visual only). */
+  cosmeticId?: string;
 }
 
 /**

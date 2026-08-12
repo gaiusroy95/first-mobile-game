@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { login as loginApi } from "../api/endpoints/auth";
+import { login as loginApi, register as registerApi } from "../api/endpoints/auth";
+import { disconnectSocket } from "../api/socket/client";
 
 interface AuthState {
   token: string | null;
@@ -8,6 +9,7 @@ interface AuthState {
   status: "idle" | "loading" | "error";
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, displayName: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -28,19 +30,36 @@ export const useAuthStore = create<AuthState>((set) => ({
         displayName: response.displayName,
         status: "idle",
       });
-    } catch {
-      // No backend yet - accept any credentials locally so the app stays
-      // navigable end to end. Swap this out once POST /auth/login is
-      // live; every screen already reads from this store, nothing else
-      // needs to change.
+    } catch (error) {
       set({
-        token: `local-${Date.now()}`,
-        playerId: `player-${username.trim().toLowerCase()}`,
-        displayName: username.trim() || "Player",
-        status: "idle",
+        status: "error",
+        error: error instanceof Error ? error.message : "Login failed — is the backend running?",
       });
+      throw error;
     }
   },
 
-  logout: () => set({ token: null, playerId: null, displayName: null, status: "idle", error: null }),
+  register: async (username, password, displayName) => {
+    set({ status: "loading", error: null });
+    try {
+      const response = await registerApi(username, password, displayName);
+      set({
+        token: response.token,
+        playerId: response.playerId,
+        displayName: response.displayName,
+        status: "idle",
+      });
+    } catch (error) {
+      set({
+        status: "error",
+        error: error instanceof Error ? error.message : "Registration failed — is the backend running?",
+      });
+      throw error;
+    }
+  },
+
+  logout: () => {
+    disconnectSocket();
+    set({ token: null, playerId: null, displayName: null, status: "idle", error: null });
+  },
 }));

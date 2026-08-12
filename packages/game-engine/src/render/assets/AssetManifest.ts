@@ -39,6 +39,12 @@ export interface AudioAssetEntry {
  * hero id today.
  */
 export const HERO_SPRITES: Record<HeroClass, SpriteAssetEntry> = {
+  commander: {
+    key: "hero.commander",
+    category: "hero",
+    path: "assets/heroes/commander/idle.png",
+    placeholderColor: 0xeab308,
+  },
   tank: { key: "hero.tank", category: "hero", path: "assets/heroes/tank/idle.png", placeholderColor: 0x64748b },
   knight: { key: "hero.knight", category: "hero", path: "assets/heroes/knight/idle.png", placeholderColor: 0x94a3b8 },
   archer: { key: "hero.archer", category: "hero", path: "assets/heroes/archer/idle.png", placeholderColor: 0x22c55e },

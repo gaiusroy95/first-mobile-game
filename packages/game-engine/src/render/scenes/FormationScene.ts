@@ -134,7 +134,8 @@ export class FormationScene extends Phaser.Scene {
 
     this.confirmed = true;
     this.timer.stop();
-    this.statusText?.setText("Formation locked in - waiting for opponent...");
+    const hint = result.warnings[0] ? ` (${result.warnings[0]})` : "";
+    this.statusText?.setText(`Formation locked in - waiting for opponent...${hint}`);
     this.onConfirmed(formation);
   }
 }

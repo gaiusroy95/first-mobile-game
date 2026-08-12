@@ -22,7 +22,11 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://first-mobile-game.onrender.com",
+        "EXPO_PUBLIC_SOCKET_URL": "https://first-mobile-game.onrender.com"
+      }
     }
   },
   "submit": {

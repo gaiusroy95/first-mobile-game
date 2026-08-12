@@ -1,63 +1,65 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { BattleRewards, Formation, FormationSlot, PlayerSide, RosterHero } from "@battle-formation/shared-types";
+import type { Formation, PlayerSide } from "@battle-formation/shared-types";
 import type { RootStackParamList } from "../../navigation/types";
-import { useFormationStore } from "../../state/formationStore";
-import { useHeroStore } from "../../state/heroStore";
+import { useAuthStore } from "../../state/authStore";
 import { useBattleStore } from "../../state/battleStore";
-import { getHeroDefinition, heroManager } from "../../state/heroCatalog";
+import { useMatchStore } from "../../state/matchStore";
+import { submitFormation } from "../../api/endpoints/battles";
 import { GameContainer, type GameContainerHandle } from "../../game/GameContainer";
 import { ScreenContainer } from "../components/ScreenContainer";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Battle">;
 
-// Naive AI opponent: one of each hero in the database, level 1, auto-placed
-// slot 1-6 in database order. Real matchmaking/opponent selection is a
-// later milestone - this exists only to give the player's squad something
-// to fight before a backend exists.
-const aiDefinitions = heroManager.listDefinitions().slice(0, 6);
-const aiRoster: RosterHero[] = aiDefinitions.map((definition) => ({
-  instanceId: `playerB-${definition.id}`,
-  side: "playerB",
-  definition,
-  level: 1,
-}));
-
-function buildAiFormation(): Formation {
-  const slots: FormationSlot[] = aiDefinitions.map((definition, index) => ({
-    instanceId: `playerB-${definition.id}`,
-    col: (index % 3) as 0 | 1 | 2,
-    row: (index < 3 ? 0 : 1) as 0 | 1,
-  }));
-  return { playerId: "playerB", slots };
-}
-
 export function BattleScreen({ navigation }: Props) {
   const gameRef = useRef<GameContainerHandle>(null);
-  const selectedInstanceIds = useFormationStore((state) => state.selectedInstanceIds);
-  const ownedHeroes = useHeroStore((state) => state.ownedHeroes);
+  const playerId = useAuthStore((state) => state.playerId);
+  const matchId = useMatchStore((state) => state.matchId);
+  const localSide = useMatchStore((state) => state.localSide);
+  const roster = useMatchStore((state) => state.roster);
+  const battleResult = useMatchStore((state) => state.battleResult);
+  const waitingForOpponent = useMatchStore((state) => state.waitingForOpponent);
+  const setWaitingForOpponent = useMatchStore((state) => state.setWaitingForOpponent);
   const setResult = useBattleStore((state) => state.setResult);
+  const [status, setStatus] = useState("Arrange your formation — 20s");
+  const startedRef = useRef(false);
+  const playedResultRef = useRef(false);
 
   useEffect(() => {
-    const squad = ownedHeroes.filter((hero) => selectedInstanceIds.includes(hero.instanceId));
-    const playerRoster: RosterHero[] = squad.map((owned) => ({
-      instanceId: owned.instanceId,
-      side: "playerA",
-      definition: getHeroDefinition(owned.heroId),
-      level: owned.level,
-    }));
+    if (!matchId || !localSide) {
+      navigation.replace("Lobby");
+    }
+  }, [matchId, localSide, navigation]);
 
-    gameRef.current?.loadHeroes([...playerRoster, ...aiRoster]);
+  useEffect(() => {
+    if (!matchId || !localSide || roster.length === 0 || startedRef.current) return;
+    startedRef.current = true;
+    gameRef.current?.loadHeroes(roster, localSide);
     gameRef.current?.startFormationPhase(20);
-  }, [selectedInstanceIds, ownedHeroes]);
+  }, [matchId, localSide, roster]);
 
-  const handleFormationConfirmed = (formation: Formation) => {
-    gameRef.current?.setFormation([formation, buildAiFormation()]);
-    gameRef.current?.startBattle(Date.now());
+  useEffect(() => {
+    if (!battleResult || playedResultRef.current) return;
+    playedResultRef.current = true;
+    setStatus("Battle playing...");
+    gameRef.current?.setFormation([battleResult.formationA, battleResult.formationB]);
+    gameRef.current?.playBattle(battleResult.events, battleResult.winner, battleResult.rewards);
+  }, [battleResult]);
+
+  const handleFormationConfirmed = async (formation: Formation) => {
+    if (!matchId || !playerId) return;
+    setWaitingForOpponent(true);
+    setStatus("Formation locked — waiting for opponent...");
+    try {
+      await submitFormation(matchId, { ...formation, playerId });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Failed to submit formation");
+      setWaitingForOpponent(false);
+    }
   };
 
-  const handleBattleFinished = (winner: PlayerSide, rewards: BattleRewards) => {
+  const handleBattleFinished = (winner: PlayerSide, rewards: Parameters<typeof setResult>[1]) => {
     setResult(winner, rewards);
     navigation.replace("Victory");
   };
@@ -65,11 +67,14 @@ export function BattleScreen({ navigation }: Props) {
   return (
     <ScreenContainer padded={false}>
       <View className="px-4 py-2">
-        <Text className="text-lg font-semibold text-white">Arrange your formation - 20s</Text>
+        <Text className="text-lg font-semibold text-white">{status}</Text>
+        {waitingForOpponent ? (
+          <Text className="text-xs text-muted">Opponent is still arranging...</Text>
+        ) : null}
       </View>
       <GameContainer
         ref={gameRef}
-        onFormationConfirmed={handleFormationConfirmed}
+        onFormationConfirmed={(formation) => void handleFormationConfirmed(formation)}
         onBattleFinished={handleBattleFinished}
         onError={(message) => console.error("[game]", message)}
       />

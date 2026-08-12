@@ -22,4 +22,14 @@ export interface BattleResult {
 export interface BattleRewards {
   gold: number;
   experience: number;
+  /** Signed trophy change for this recipient (win positive / loss negative). */
+  trophyDelta?: number;
+  heroCards?: { heroId: string; count: number }[];
+  materials?: { materialId: string; count: number }[];
 }
+
+/**
+ * Remaining team power used when the battle hits the time cap without a wipe.
+ * Formula: sum over living heroes of (currentHp + attack * TEAM_POWER_ATTACK_WEIGHT).
+ */
+export const TEAM_POWER_ATTACK_WEIGHT = 2;

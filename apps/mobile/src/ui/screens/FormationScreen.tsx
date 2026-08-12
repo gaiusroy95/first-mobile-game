@@ -12,9 +12,10 @@ type Props = NativeStackScreenProps<RootStackParamList, "Formation">;
 
 /**
  * Squad selection: pick which SQUAD_SIZE owned heroes enter the next
- * battle. Where each one stands on the grid is decided interactively
- * inside Phaser once the battle starts (see FormationScene) - this screen
- * only decides the roster, never positions.
+ * matchmaking battle. Grid positions are set in Phaser during the 20s prep.
+ *
+ * Tip: front row (nearest center) suits tank/knight/commander; back row
+ * suits archer/mages/healer/assassin.
  */
 export function FormationScreen({ navigation }: Props) {
   const ownedHeroes = useHeroStore((state) => state.ownedHeroes);
@@ -30,13 +31,16 @@ export function FormationScreen({ navigation }: Props) {
           {selectedInstanceIds.length} / {SQUAD_SIZE}
         </Text>
       </View>
-      <Text className="mb-4 text-muted">Choose {SQUAD_SIZE} heroes to bring into battle.</Text>
+      <Text className="mb-2 text-muted">Choose {SQUAD_SIZE} heroes for Find Match.</Text>
+      <Text className="mb-4 text-xs text-muted">
+        Front row: tanks / knights / commander. Back row: archers / mages / healer / assassin.
+      </Text>
 
       <FlatList
         data={ownedHeroes}
         keyExtractor={(hero) => hero.instanceId}
         numColumns={3}
-        ListEmptyComponent={<Text className="text-muted">No heroes yet - visit the Collection first.</Text>}
+        ListEmptyComponent={<Text className="text-muted">No heroes yet — register or open Collection.</Text>}
         renderItem={({ item }) => (
           <HeroCard
             definition={getHeroDefinition(item.heroId)}
@@ -47,8 +51,13 @@ export function FormationScreen({ navigation }: Props) {
         )}
       />
 
-      <View className="pb-2 pt-4">
-        <PrimaryButton label="Start Battle" disabled={!isComplete} onPress={() => navigation.navigate("Battle")} />
+      <View className="gap-2 pb-2 pt-4">
+        <PrimaryButton
+          label="Save Squad & Return to Lobby"
+          disabled={!isComplete}
+          onPress={() => navigation.navigate("Lobby")}
+        />
+        <PrimaryButton label="Back" variant="secondary" onPress={() => navigation.goBack()} />
       </View>
     </ScreenContainer>
   );

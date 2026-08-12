@@ -1,12 +1,13 @@
 import { Module } from "@nestjs/common";
 import { PlayersModule } from "../players/players.module";
 import { BattlesModule } from "../battles/battles.module";
+import { HeroesModule } from "../heroes/heroes.module";
 import { RealtimeModule } from "../realtime/realtime.module";
 import { MatchmakingService } from "./matchmaking.service";
 import { MatchmakingController } from "./matchmaking.controller";
 
 @Module({
-  imports: [PlayersModule, BattlesModule, RealtimeModule],
+  imports: [PlayersModule, BattlesModule, HeroesModule, RealtimeModule],
   controllers: [MatchmakingController],
   providers: [MatchmakingService],
 })

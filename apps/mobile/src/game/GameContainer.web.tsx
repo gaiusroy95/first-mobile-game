@@ -25,11 +25,14 @@ export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>
     });
 
     useImperativeHandle(ref, () => ({
-      loadHeroes: (heroes) => send({ type: "LOAD_HEROES", payload: { heroes } }),
+      loadHeroes: (heroes, localSide) =>
+        send({ type: "LOAD_HEROES", payload: { heroes, localSide } }),
       startFormationPhase: (durationSeconds) =>
         send({ type: "START_FORMATION_PHASE", payload: { durationSeconds } }),
       setFormation: (formations) => send({ type: "SET_FORMATION", payload: { formations } }),
       startBattle: (seed) => send({ type: "START_BATTLE", payload: { seed } }),
+      playBattle: (events, winner, rewards) =>
+        send({ type: "PLAY_BATTLE", payload: { events, winner, rewards } }),
     }));
 
     useEffect(() => {

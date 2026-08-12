@@ -9,7 +9,7 @@ export {
   type AudioAssetEntry,
   type AnimationClip,
 } from "./AssetManifest";
-export { ensurePlaceholderTexture } from "./PlaceholderFactory";
+export { ensurePlaceholderTexture, shapeForHeroKey, type PlaceholderShape } from "./PlaceholderFactory";
 export { preloadAssets, generatePlaceholders } from "./AssetLoader";
 export { createHeroAnimations } from "./AnimationRegistry";
 export { SoundManager } from "./SoundManager";

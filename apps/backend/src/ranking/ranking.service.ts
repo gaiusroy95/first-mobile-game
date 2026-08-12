@@ -17,10 +17,19 @@ export class RankingService {
     private readonly redis: RedisService
   ) {}
 
-  async applyMatchResult(playerAId: string, playerBId: string, winnerId: string): Promise<void> {
+  async applyMatchResult(
+    playerAId: string,
+    playerBId: string,
+    winnerId: string,
+    mode = "casual"
+  ): Promise<void> {
+    const winDelta = mode === "ranked" ? TROPHY_DELTA_WIN : mode === "casual" ? Math.floor(TROPHY_DELTA_WIN / 2) : 0;
+    const lossDelta = mode === "ranked" ? TROPHY_DELTA_LOSS : mode === "casual" ? Math.floor(TROPHY_DELTA_LOSS / 2) : 0;
+    if (winDelta === 0 && lossDelta === 0) return;
+
     const loserId = winnerId === playerAId ? playerBId : playerAId;
-    await this.adjustTrophies(winnerId, TROPHY_DELTA_WIN);
-    await this.adjustTrophies(loserId, TROPHY_DELTA_LOSS);
+    await this.adjustTrophies(winnerId, winDelta);
+    await this.adjustTrophies(loserId, lossDelta);
   }
 
   /** Postgres stays the source of truth (survives a Redis flush); the ZSET is a write-through cache that makes leaderboard reads never touch the database. */

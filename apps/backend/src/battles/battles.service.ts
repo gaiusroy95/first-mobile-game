@@ -24,11 +24,12 @@ export class BattlesService {
     private readonly realtime: RealtimeGateway
   ) {}
 
-  createMatch(playerAId: string, playerBId: string): Promise<MatchEntity> {
+  createMatch(playerAId: string, playerBId: string, mode = "casual"): Promise<MatchEntity> {
     const match = this.matches.create({
       playerAId,
       playerBId,
       status: "pending",
+      mode,
       // A per-match deterministic seed: the same two formations replayed
       // with this seed always produce the same event log (see
       // BattleManager), which is what makes the server-authoritative
@@ -136,23 +137,29 @@ export class BattlesService {
     match.status = "complete";
     await this.matches.save(match);
 
-    await this.ranking.applyMatchResult(match.playerAId, match.playerBId, match.winnerId);
+    await this.ranking.applyMatchResult(match.playerAId, match.playerBId, match.winnerId, match.mode);
     // Rewards are computed and persisted here, as a direct consequence of
     // the server's own resolution - never in response to a client request
     // (see RewardsService.grantForMatch).
     const rewards = await this.rewards.grantForMatch(match);
 
+    const formationA = match.formationA as Formation;
+    const formationB = match.formationB as Formation;
     const toPlayerA: BattleResultPayload = {
       matchId: match.id,
       winner: result.winner,
       events: result.events,
       rewards: rewards.playerA,
+      formationA,
+      formationB,
     };
     const toPlayerB: BattleResultPayload = {
       matchId: match.id,
       winner: result.winner,
       events: result.events,
       rewards: rewards.playerB,
+      formationA,
+      formationB,
     };
     this.realtime.emitToPlayer(match.playerAId, "battle:result", toPlayerA);
     this.realtime.emitToPlayer(match.playerBId, "battle:result", toPlayerB);

@@ -1,21 +1,33 @@
-import type { Formation } from "@battle-formation/shared-types";
+import type { Formation, HeroClass } from "@battle-formation/shared-types";
 
 export interface FormationValidationResult {
   valid: boolean;
   errors: string[];
+  /** Soft GDD guidance (front = melee, back = ranged/support) — never blocks submit. */
+  warnings: string[];
 }
 
 const REQUIRED_HERO_COUNT = 6;
 
+const FRONT_ROW_CLASSES: ReadonlySet<HeroClass> = new Set(["tank", "knight", "commander"]);
+const BACK_ROW_CLASSES: ReadonlySet<HeroClass> = new Set([
+  "archer",
+  "fire-mage",
+  "ice-mage",
+  "healer",
+  "assassin",
+]);
+
 /**
  * Pure rule-check over a Formation - no Phaser, no I/O, no randomness. Runs
- * identically on the client (to gate the Confirm button) and, later, on the
- * backend (to reject a formation a modified client tries to submit),
- * because both import this exact function from the same package instead of
- * each re-implementing the rules.
+ * identically on the client and the backend.
  */
-export function validateFormation(formation: Formation): FormationValidationResult {
+export function validateFormation(
+  formation: Formation,
+  classByInstanceId?: Map<string, HeroClass>
+): FormationValidationResult {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const seenSlots = new Set<string>();
   const seenInstances = new Set<string>();
 
@@ -36,6 +48,17 @@ export function validateFormation(formation: Formation): FormationValidationResu
         `Hero instance "${instanceId}" has an out-of-bounds slot (col ${col}, row ${row})`
       );
     }
+
+    const heroClass = classByInstanceId?.get(instanceId);
+    if (heroClass) {
+      // row 1 = front (nearest centerline), row 0 = back
+      if (row === 1 && BACK_ROW_CLASSES.has(heroClass)) {
+        warnings.push(`${heroClass} is usually better in the back row`);
+      }
+      if (row === 0 && FRONT_ROW_CLASSES.has(heroClass)) {
+        warnings.push(`${heroClass} is usually better in the front row`);
+      }
+    }
   }
 
   if (formation.slots.length !== REQUIRED_HERO_COUNT) {
@@ -44,5 +67,5 @@ export function validateFormation(formation: Formation): FormationValidationResu
     );
   }
 
-  return { valid: errors.length === 0, errors };
+  return { valid: errors.length === 0, errors, warnings };
 }

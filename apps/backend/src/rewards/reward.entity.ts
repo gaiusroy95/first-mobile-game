@@ -25,6 +25,15 @@ export class RewardEntity {
   @Column()
   experience: number;
 
+  @Column({ type: "int", default: 0 })
+  trophyDelta: number;
+
+  @Column({ type: "jsonb", default: [] })
+  heroCards: { heroId: string; count: number }[];
+
+  @Column({ type: "jsonb", default: [] })
+  materials: { materialId: string; count: number }[];
+
   @CreateDateColumn()
   grantedAt: Date;
 }

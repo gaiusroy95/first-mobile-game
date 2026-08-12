@@ -29,12 +29,24 @@ export class Player {
   @Column({ default: 300 })
   gold: number;
 
-  @Column({ default: 0 })
+  @Column({ default: 100 })
   gems: number;
 
   /** Source of truth for ranking; ranking.service.ts mirrors this into a Redis ZSET for fast leaderboard reads. */
   @Column({ default: 0 })
   trophies: number;
+
+  /** Hero card counts keyed by catalog heroId. */
+  @Column({ type: "jsonb", default: {} })
+  heroCards: Record<string, number>;
+
+  /** Upgrade material counts keyed by material id. */
+  @Column({ type: "jsonb", default: {} })
+  materials: Record<string, number>;
+
+  /** Unlocked cosmetic skin ids the player owns. */
+  @Column({ type: "text", array: true, default: [] })
+  ownedCosmetics: string[];
 
   @CreateDateColumn()
   createdAt: Date;

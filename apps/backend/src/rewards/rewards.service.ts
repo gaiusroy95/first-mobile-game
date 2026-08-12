@@ -6,8 +6,13 @@ import { Player } from "../players/player.entity";
 import { MatchEntity } from "../battles/match.entity";
 import { RewardEntity } from "./reward.entity";
 
-const WIN_REWARD: BattleRewards = { gold: 100, experience: 50 };
-const LOSS_REWARD: BattleRewards = { gold: 25, experience: 10 };
+const XP_PER_LEVEL = 100;
+const TROPHY_WIN = 25;
+const TROPHY_LOSS = -15;
+
+const WIN_REWARD = { gold: 100, experience: 50 };
+const LOSS_REWARD = { gold: 25, experience: 10 };
+
 /** Postgres unique_violation - see reward.entity.ts. */
 const UNIQUE_VIOLATION = "23505";
 
@@ -25,9 +30,7 @@ export class RewardsService {
 
   /**
    * Called exactly once by BattlesService right after a match resolves -
-   * there is no client-facing "claim" action. A reward is a direct,
-   * automatic consequence of the server computing a winner, never
-   * something a client can request, time, or replay for a second payout.
+   * there is no client-facing "claim" action.
    */
   async grantForMatch(match: MatchEntity): Promise<MatchRewards> {
     return {
@@ -38,24 +41,77 @@ export class RewardsService {
 
   private async grant(match: MatchEntity, playerId: string): Promise<BattleRewards> {
     const existing = await this.rewards.findOne({ where: { matchId: match.id, playerId } });
-    if (existing) return existing;
+    if (existing) {
+      return {
+        gold: existing.gold,
+        experience: existing.experience,
+        trophyDelta: existing.trophyDelta,
+        heroCards: existing.heroCards ?? [],
+        materials: existing.materials ?? [],
+      };
+    }
 
-    const reward = match.winnerId === playerId ? WIN_REWARD : LOSS_REWARD;
+    const won = match.winnerId === playerId;
+    const base = won ? WIN_REWARD : LOSS_REWARD;
+    const trophyDelta = won ? TROPHY_WIN : TROPHY_LOSS;
+    const heroCards = [{ heroId: "commander-01", count: won ? 2 : 1 }];
+    const materials = [
+      { materialId: "essence_common", count: won ? 3 : 1 },
+      { materialId: "essence_rare", count: won ? 1 : 0 },
+    ].filter((m) => m.count > 0);
+
+    const reward: BattleRewards = {
+      gold: base.gold,
+      experience: base.experience,
+      trophyDelta,
+      heroCards,
+      materials,
+    };
 
     try {
-      // The reward row and the gold credit commit together or not at all.
       return await this.dataSource.transaction(async (manager) => {
-        const saved = await manager.save(RewardEntity, { matchId: match.id, playerId, ...reward });
-        await manager.increment(Player, { id: playerId }, "gold", reward.gold);
-        return saved;
+        const saved = await manager.save(RewardEntity, {
+          matchId: match.id,
+          playerId,
+          gold: reward.gold,
+          experience: reward.experience,
+          trophyDelta,
+          heroCards,
+          materials,
+        });
+
+        const player = await manager.findOneByOrFail(Player, { id: playerId });
+        player.gold += reward.gold;
+        player.xp += reward.experience;
+        while (player.xp >= XP_PER_LEVEL) {
+          player.xp -= XP_PER_LEVEL;
+          player.level += 1;
+        }
+
+        const cards = { ...(player.heroCards ?? {}) };
+        for (const drop of heroCards) {
+          cards[drop.heroId] = (cards[drop.heroId] ?? 0) + drop.count;
+        }
+        player.heroCards = cards;
+
+        const mats = { ...(player.materials ?? {}) };
+        for (const drop of materials) {
+          mats[drop.materialId] = (mats[drop.materialId] ?? 0) + drop.count;
+        }
+        player.materials = mats;
+
+        await manager.save(player);
+        return {
+          gold: saved.gold,
+          experience: saved.experience,
+          trophyDelta: saved.trophyDelta,
+          heroCards: saved.heroCards,
+          materials: saved.materials,
+        };
       });
     } catch (error) {
       if (isUniqueViolation(error)) {
-        // grantForMatch ran twice for this match (shouldn't happen given
-        // the status guard in BattlesService, but the constraint - not
-        // this catch - is the actual guarantee) - return what was already
-        // granted instead of granting again.
-        return this.rewards.findOneByOrFail({ matchId: match.id, playerId });
+        return this.grant(match, playerId);
       }
       throw error;
     }
@@ -67,5 +123,10 @@ export class RewardsService {
 }
 
 function isUniqueViolation(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === UNIQUE_VIOLATION;
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code: string }).code === UNIQUE_VIOLATION
+  );
 }

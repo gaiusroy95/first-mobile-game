@@ -32,6 +32,10 @@ export class OwnedHeroEntity {
   @Column("text", { array: true, default: [] })
   upgrades: string[];
 
+  /** Equipped cosmetic skin id (stats-neutral). */
+  @Column({ type: "varchar", nullable: true })
+  cosmeticId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

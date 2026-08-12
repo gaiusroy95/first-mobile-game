@@ -1,4 +1,4 @@
-import type { BattleEvent, BattleRewards, PlayerSide } from "../domain";
+import type { BattleEvent, BattleRewards, PlayerSide, RosterHero } from "../domain";
 
 /**
  * Wire contracts shared between the backend (apps/backend) and any client
@@ -38,12 +38,20 @@ export interface RankingSummary {
 export interface RewardResponse {
   gold: number;
   experience: number;
+  trophyDelta?: number;
+  heroCards?: { heroId: string; count: number }[];
+  materials?: { materialId: string; count: number }[];
 }
 
 /** WebSocket: server -> client, "matchmaking:found" */
 export interface MatchFoundPayload {
   matchId: string;
   opponentId: string;
+  playerAId: string;
+  playerBId: string;
+  formationDeadline: string;
+  /** Absolute-side rosters for both participants (definitions included). */
+  roster: RosterHero[];
 }
 
 /** WebSocket: server -> client, "battle:start" - both formations are locked in, the authoritative simulation is about to run. */
@@ -62,4 +70,6 @@ export interface BattleResultPayload {
   winner: PlayerSide;
   events: BattleEvent[];
   rewards: BattleRewards;
+  formationA: import("../domain").Formation;
+  formationB: import("../domain").Formation;
 }

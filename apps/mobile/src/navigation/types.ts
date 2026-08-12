@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Login: undefined;
   Lobby: undefined;
+  Modes: undefined;
   Collection: undefined;
   Formation: undefined;
   Battle: undefined;

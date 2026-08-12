@@ -8,3 +8,17 @@ export function fetchOwnedHeroes(): Promise<OwnedHero[]> {
 export function upgradeHero(instanceId: string): Promise<OwnedHero> {
   return apiFetch<OwnedHero>(`/heroes/${instanceId}/upgrade`, { method: "POST" });
 }
+
+export function unlockHero(heroId: string): Promise<OwnedHero> {
+  return apiFetch<OwnedHero>("/heroes/unlock", {
+    method: "POST",
+    body: JSON.stringify({ heroId }),
+  });
+}
+
+export function equipCosmetic(instanceId: string, cosmeticId: string | null): Promise<OwnedHero> {
+  return apiFetch<OwnedHero>(`/heroes/${instanceId}/cosmetic`, {
+    method: "POST",
+    body: JSON.stringify({ cosmeticId }),
+  });
+}

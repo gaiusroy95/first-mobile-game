@@ -1,4 +1,5 @@
 import type { Ability, BattleEvent, BattleResult, Formation, Hero, PlayerSide } from "@battle-formation/shared-types";
+import { TEAM_POWER_ATTACK_WEIGHT } from "@battle-formation/shared-types";
 import { createRng } from "../rng";
 import { MAX_TICKS, MOVEMENT_STEP_COST, TICK_RATE } from "./constants";
 import { calculateDamage } from "./DamageCalculator";
@@ -295,13 +296,16 @@ export class BattleManager {
     if (aAlive && !bAlive) return "playerA";
     if (bAlive && !aAlive) return "playerB";
 
-    // Neither/both sides have survivors at the MAX_TICKS cap: deterministic
-    // tiebreak by total remaining HP rather than leaving it undecided.
-    const remainingHp = (side: PlayerSide) =>
+    // Time-cap tiebreak: highest remaining team power wins (GDD).
+    const teamPower = (side: PlayerSide) =>
       this.entities
         .filter((entity) => entity.side === side && entity.alive)
-        .reduce((sum, entity) => sum + entity.currentHp, 0);
+        .reduce(
+          (sum, entity) =>
+            sum + entity.currentHp + entity.getEffectiveStat("attack") * TEAM_POWER_ATTACK_WEIGHT,
+          0
+        );
 
-    return remainingHp("playerA") >= remainingHp("playerB") ? "playerA" : "playerB";
+    return teamPower("playerA") >= teamPower("playerB") ? "playerA" : "playerB";
   }
 }

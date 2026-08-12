@@ -1,6 +1,6 @@
 import type Phaser from "phaser";
 import { EFFECT_SPRITES, HERO_SPRITES, SOUNDS, UI_SPRITES, type SpriteAssetEntry } from "./AssetManifest";
-import { ensurePlaceholderTexture } from "./PlaceholderFactory";
+import { ensurePlaceholderTexture, shapeForHeroKey } from "./PlaceholderFactory";
 
 /**
  * Call from a scene's `preload()`. Only entries with a real `source`
@@ -54,5 +54,6 @@ export function generatePlaceholders(scene: Phaser.Scene): void {
 
 function generateIfMissing(scene: Phaser.Scene, entry: SpriteAssetEntry): void {
   if (scene.textures.exists(entry.key)) return; // real asset loaded successfully
-  ensurePlaceholderTexture(scene, entry.key, entry.placeholderColor);
+  const shape = entry.category === "hero" ? shapeForHeroKey(entry.key) : "circle";
+  ensurePlaceholderTexture(scene, entry.key, entry.placeholderColor, shape);
 }

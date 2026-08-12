@@ -2,14 +2,15 @@ import { Injectable } from "@nestjs/common";
 import type { MatchFoundPayload } from "@battle-formation/shared-types";
 import { PlayersService } from "../players/players.service";
 import { BattlesService } from "../battles/battles.service";
+import { HeroesService } from "../heroes/heroes.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { RedisService } from "../common/redis.module";
 
-const QUEUE_KEY = "matchmaking:queue";
-/** How far apart two players' trophy counts can be and still be paired. */
-const RATING_WINDOW = 100;
+const RATING_WINDOW_CASUAL = 150;
+const RATING_WINDOW_RANKED = 80;
 
 export type QueueResult = { status: "queued" } | { status: "matched"; matchId: string };
+export type PvpMode = "casual" | "ranked";
 
 @Injectable()
 export class MatchmakingService {
@@ -17,26 +18,28 @@ export class MatchmakingService {
     private readonly redis: RedisService,
     private readonly players: PlayersService,
     private readonly battles: BattlesService,
+    private readonly heroes: HeroesService,
     private readonly realtime: RealtimeGateway
   ) {}
 
-  /**
-   * Redis ZSET (score = trophies) is what makes this queue correct under
-   * horizontal scaling: every backend instance reads and writes the same
-   * queue, so it doesn't matter which instance either player's join
-   * request lands on. Not fully race-proof under concurrent joins (see the
-   * ZREM check below) - a dedicated single-consumer matchmaking worker is
-   * the documented next step once concurrent join volume makes that
-   * matter (see the scalability notes).
-   */
-  async joinQueue(playerId: string): Promise<QueueResult> {
+  private queueKey(mode: PvpMode): string {
+    return `matchmaking:queue:${mode}`;
+  }
+
+  private ratingWindow(mode: PvpMode): number {
+    return mode === "ranked" ? RATING_WINDOW_RANKED : RATING_WINDOW_CASUAL;
+  }
+
+  async joinQueue(playerId: string, mode: PvpMode = "casual"): Promise<QueueResult> {
+    const queueKey = this.queueKey(mode);
+    const window = this.ratingWindow(mode);
     const profile = await this.players.findById(playerId);
     const client = this.redis.client;
 
     const candidates = await client.zrangebyscore(
-      QUEUE_KEY,
-      profile.trophies - RATING_WINDOW,
-      profile.trophies + RATING_WINDOW,
+      queueKey,
+      profile.trophies - window,
+      profile.trophies + window,
       "LIMIT",
       0,
       1
@@ -44,30 +47,65 @@ export class MatchmakingService {
 
     const opponentId = candidates[0];
     if (!opponentId) {
-      await client.zadd(QUEUE_KEY, profile.trophies, playerId);
+      await client.zadd(queueKey, profile.trophies, playerId);
       return { status: "queued" };
     }
 
-    const removed = await client.zrem(QUEUE_KEY, opponentId);
+    const removed = await client.zrem(queueKey, opponentId);
     if (removed === 0) {
-      // Another instance matched this opponent between our read and this
-      // removal - fall back to queueing ourselves rather than risk
-      // double-matching the same opponent.
-      await client.zadd(QUEUE_KEY, profile.trophies, playerId);
+      await client.zadd(queueKey, profile.trophies, playerId);
       return { status: "queued" };
     }
 
-    const match = await this.battles.createMatch(playerId, opponentId);
-
-    const toPlayer: MatchFoundPayload = { matchId: match.id, opponentId };
-    const toOpponent: MatchFoundPayload = { matchId: match.id, opponentId: playerId };
-    this.realtime.emitToPlayer(playerId, "matchmaking:found", toPlayer);
-    this.realtime.emitToPlayer(opponentId, "matchmaking:found", toOpponent);
+    const match = await this.battles.createMatch(playerId, opponentId, mode);
+    await this.emitMatchFound(
+      match.id,
+      playerId,
+      opponentId,
+      match.playerAId,
+      match.playerBId,
+      match.formationDeadline
+    );
 
     return { status: "matched", matchId: match.id };
   }
 
-  async leaveQueue(playerId: string): Promise<void> {
-    await this.redis.client.zrem(QUEUE_KEY, playerId);
+  async leaveQueue(playerId: string, mode: PvpMode = "casual"): Promise<void> {
+    await this.redis.client.zrem(this.queueKey(mode), playerId);
+  }
+
+  private async emitMatchFound(
+    matchId: string,
+    playerId: string,
+    opponentId: string,
+    playerAId: string,
+    playerBId: string,
+    formationDeadline: Date
+  ): Promise<void> {
+    const [rosterA, rosterB] = await Promise.all([
+      this.heroes.buildRoster(playerAId, "playerA"),
+      this.heroes.buildRoster(playerBId, "playerB"),
+    ]);
+    const roster = [...rosterA, ...rosterB];
+    const deadline = formationDeadline.toISOString();
+
+    const toPlayer: MatchFoundPayload = {
+      matchId,
+      opponentId,
+      playerAId,
+      playerBId,
+      formationDeadline: deadline,
+      roster,
+    };
+    const toOpponent: MatchFoundPayload = {
+      matchId,
+      opponentId: playerId,
+      playerAId,
+      playerBId,
+      formationDeadline: deadline,
+      roster,
+    };
+    this.realtime.emitToPlayer(playerId, "matchmaking:found", toPlayer);
+    this.realtime.emitToPlayer(opponentId, "matchmaking:found", toOpponent);
   }
 }

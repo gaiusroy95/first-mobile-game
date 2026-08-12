@@ -3,15 +3,17 @@ import type { HeroBehavior } from "./HeroBehavior";
 import { aggressiveMeleeBehavior } from "./behaviors/aggressiveMelee";
 import { rangedBehavior } from "./behaviors/ranged";
 import { backlineHunterBehavior } from "./behaviors/backlineHunter";
+import { supportBehavior } from "./behaviors/supportBehavior";
 import { defaultBehavior } from "./behaviors/defaultBehavior";
 
 const DEFAULT_CLASS_BEHAVIORS: Partial<Record<HeroClass, HeroBehavior>> = {
+  commander: aggressiveMeleeBehavior,
   tank: aggressiveMeleeBehavior,
   knight: aggressiveMeleeBehavior,
   archer: rangedBehavior,
   "fire-mage": rangedBehavior,
   "ice-mage": rangedBehavior,
-  healer: rangedBehavior,
+  healer: supportBehavior,
   assassin: backlineHunterBehavior,
 };
 
