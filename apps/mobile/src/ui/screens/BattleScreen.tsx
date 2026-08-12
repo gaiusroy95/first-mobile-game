@@ -22,7 +22,8 @@ export function BattleScreen({ navigation }: Props) {
   const waitingForOpponent = useMatchStore((state) => state.waitingForOpponent);
   const setWaitingForOpponent = useMatchStore((state) => state.setWaitingForOpponent);
   const setResult = useBattleStore((state) => state.setResult);
-  const [status, setStatus] = useState("Arrange your formation — 20s");
+  const [phase, setPhase] = useState<"prep" | "waiting" | "fight">("prep");
+  const [status, setStatus] = useState("Drag 6 heroes onto your grid. Front = tanks. Back = damage.");
   const startedRef = useRef(false);
   const playedResultRef = useRef(false);
 
@@ -42,7 +43,8 @@ export function BattleScreen({ navigation }: Props) {
   useEffect(() => {
     if (!battleResult || playedResultRef.current) return;
     playedResultRef.current = true;
-    setStatus("Battle playing...");
+    setPhase("fight");
+    setStatus("Battle in progress — your heroes fight on their own.");
     gameRef.current?.setFormation([battleResult.formationA, battleResult.formationB]);
     gameRef.current?.playBattle(battleResult.events, battleResult.winner, battleResult.rewards);
   }, [battleResult]);
@@ -50,12 +52,14 @@ export function BattleScreen({ navigation }: Props) {
   const handleFormationConfirmed = async (formation: Formation) => {
     if (!matchId || !playerId) return;
     setWaitingForOpponent(true);
-    setStatus("Formation locked — waiting for opponent...");
+    setPhase("waiting");
+    setStatus("Formation locked. Waiting for your opponent to finish placing…");
     try {
       await submitFormation(matchId, { ...formation, playerId });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to submit formation");
       setWaitingForOpponent(false);
+      setPhase("prep");
     }
   };
 
@@ -64,12 +68,18 @@ export function BattleScreen({ navigation }: Props) {
     navigation.replace("Victory");
   };
 
+  const phaseLabel =
+    phase === "prep" ? "Preparation · 20s" : phase === "waiting" ? "Waiting" : "Auto-battle";
+
   return (
     <ScreenContainer padded={false}>
-      <View className="px-4 py-2">
-        <Text className="text-lg font-semibold text-white">{status}</Text>
+      <View className="border-b border-border bg-surface px-5 py-3">
+        <Text className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
+          {phaseLabel}
+        </Text>
+        <Text className="mt-1 text-base font-semibold text-ink">{status}</Text>
         {waitingForOpponent ? (
-          <Text className="text-xs text-muted">Opponent is still arranging...</Text>
+          <Text className="mt-1 text-xs text-muted">You can still watch your locked board.</Text>
         ) : null}
       </View>
       <GameContainer

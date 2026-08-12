@@ -42,7 +42,7 @@ export function UpgradeScreen({ route }: Props) {
   if (!selected) {
     return (
       <ScreenContainer>
-        <Text className="mb-4 text-2xl font-bold text-white">Upgrade Heroes</Text>
+        <Text className="mb-4 text-2xl font-bold text-ink">Upgrade heroes</Text>
         <FlatList
           data={ownedHeroes}
           keyExtractor={(hero) => hero.instanceId}
@@ -80,7 +80,10 @@ export function UpgradeScreen({ route }: Props) {
   return (
     <ScreenContainer>
       <View className="mb-4 flex-row items-center justify-between">
-        <Text className="text-2xl font-bold text-white">Upgrade Heroes</Text>
+        <View>
+          <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Grow stronger</Text>
+          <Text className="mt-1 text-2xl font-bold text-ink">Upgrade heroes</Text>
+        </View>
         <View className="items-end gap-1">
           <CurrencyBadge amount={gold} />
           <Text className="text-xs text-muted">

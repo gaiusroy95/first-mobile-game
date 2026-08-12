@@ -54,7 +54,7 @@ export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>
         ref={iframeRef}
         srcDoc={GAME_HTML}
         title="Battle Formation"
-        style={{ flex: 1, border: "none", backgroundColor: "#0f172a", width: "100%", height: "100%" }}
+        style={{ flex: 1, border: "none", backgroundColor: "#0b1210", width: "100%", height: "100%" }}
       />
     );
   }

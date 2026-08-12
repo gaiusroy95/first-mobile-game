@@ -17,6 +17,7 @@ import {
 } from "../../api/endpoints/modes";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { Panel } from "../components/Panel";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Modes">;
 
@@ -66,81 +67,95 @@ export function ModesScreen({ navigation }: Props) {
   return (
     <ScreenContainer>
       <ScrollView className="flex-1" contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
-        <Text className="text-2xl font-bold text-white">Game Modes</Text>
+        <View>
+          <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Play</Text>
+          <Text className="mt-1 text-2xl font-bold text-ink">Game modes</Text>
+          <Text className="mt-2 text-sm leading-5 text-muted">
+            Same battlefield rules everywhere — different ways to queue and earn rewards.
+          </Text>
+        </View>
         {message ? <Text className="text-sm text-accent">{message}</Text> : null}
 
-        <View className="gap-2 rounded-lg bg-surface p-4">
-          <Text className="text-lg font-semibold text-white">PvP</Text>
-          <PrimaryButton label="Casual Match" onPress={() => void findMatch("casual")} />
-          <PrimaryButton label="Ranked Match" onPress={() => void findMatch("ranked")} />
-        </View>
+        <Panel title="Player vs player">
+          <Text className="mb-3 text-xs text-muted">
+            Casual is softer on trophies. Ranked swings harder and matches closer skill.
+          </Text>
+          <View className="gap-2">
+            <PrimaryButton label="Casual match" subtitle="Wider matchmaking" onPress={() => void findMatch("casual")} />
+            <PrimaryButton label="Ranked match" subtitle="Stricter MMR · full trophies" onPress={() => void findMatch("ranked")} />
+          </View>
+        </Panel>
 
-        <View className="gap-2 rounded-lg bg-surface p-4">
-          <Text className="text-lg font-semibold text-white">Adventure</Text>
-          <Text className="text-xs text-muted">Highest cleared: {highestCleared}</Text>
+        <Panel title="Adventure">
+          <Text className="mb-2 text-xs text-muted">
+            Fight scripted enemy teams. Highest cleared: {highestCleared}
+          </Text>
           {stages.map((stage) => {
             const locked = stage.id > highestCleared + 1;
             return (
-              <PrimaryButton
-                key={stage.id}
-                label={`${stage.name} (Lv ${stage.enemyLevels})`}
-                disabled={locked || ownedHeroes.length < 6}
-                onPress={() =>
-                  void playAdventureStage(stage.id, buildFormationFromSquad())
-                    .then((result) => {
-                      setMessage(
-                        result.cleared
-                          ? `Cleared ${stage.name}!`
-                          : `Defeated on ${stage.name}. Try a new formation.`
-                      );
-                      if (result.cleared) setHighestCleared((h) => Math.max(h, stage.id));
-                    })
-                    .catch((err) => setMessage(err instanceof Error ? err.message : "Adventure failed"))
-                }
-              />
+              <View key={stage.id} className="mt-2">
+                <PrimaryButton
+                  label={`${stage.name} (Lv ${stage.enemyLevels})`}
+                  disabled={locked || ownedHeroes.length < 6}
+                  onPress={() =>
+                    void playAdventureStage(stage.id, buildFormationFromSquad())
+                      .then((result) => {
+                        setMessage(
+                          result.cleared
+                            ? `Cleared ${stage.name}!`
+                            : `Defeated on ${stage.name}. Try a new formation.`
+                        );
+                        if (result.cleared) setHighestCleared((h) => Math.max(h, stage.id));
+                      })
+                      .catch((err) => setMessage(err instanceof Error ? err.message : "Adventure failed"))
+                  }
+                />
+              </View>
             );
           })}
-        </View>
+        </Panel>
 
-        <View className="gap-2 rounded-lg bg-surface p-4">
-          <Text className="text-lg font-semibold text-white">Events</Text>
+        <Panel title="Events">
           {events.length === 0 ? (
-            <Text className="text-muted">No active events.</Text>
+            <Text className="text-muted">No active events right now.</Text>
           ) : (
             events.map((event) => (
-              <View key={event.id} className="mb-2">
-                <Text className="font-semibold text-white">{event.title}</Text>
-                <Text className="text-xs text-muted">{event.description}</Text>
+              <View key={event.id} className="mb-3 border-b border-border pb-3 last:mb-0 last:border-b-0 last:pb-0">
+                <Text className="font-semibold text-ink">{event.title}</Text>
+                <Text className="mt-1 text-xs text-muted">{event.description}</Text>
               </View>
             ))
           )}
-        </View>
+        </Panel>
 
-        <View className="gap-2 rounded-lg bg-surface p-4">
-          <Text className="text-lg font-semibold text-white">Tournament</Text>
-          {tournaments.map((tournament) => (
-            <View key={tournament.id} className="gap-2">
-              <Text className="text-white">
-                {tournament.name} — {tournament.status} ({tournament.playerIds.length}/
-                {tournament.maxPlayers})
-              </Text>
-              <PrimaryButton
-                label="Join"
-                disabled={tournament.status !== "open"}
-                onPress={() =>
-                  void joinTournament(tournament.id)
-                    .then(() => {
-                      setMessage(`Joined ${tournament.name}`);
-                      return fetchTournaments().then(setTournaments);
-                    })
-                    .catch((err) => setMessage(err instanceof Error ? err.message : "Join failed"))
-                }
-              />
-            </View>
-          ))}
-        </View>
+        <Panel title="Tournament">
+          {tournaments.length === 0 ? (
+            <Text className="text-muted">No tournaments open.</Text>
+          ) : (
+            tournaments.map((tournament) => (
+              <View key={tournament.id} className="mb-3 gap-2">
+                <Text className="text-ink">
+                  {tournament.name} — {tournament.status} ({tournament.playerIds.length}/
+                  {tournament.maxPlayers})
+                </Text>
+                <PrimaryButton
+                  label="Join bracket"
+                  disabled={tournament.status !== "open"}
+                  onPress={() =>
+                    void joinTournament(tournament.id)
+                      .then(() => {
+                        setMessage(`Joined ${tournament.name}`);
+                        return fetchTournaments().then(setTournaments);
+                      })
+                      .catch((err) => setMessage(err instanceof Error ? err.message : "Join failed"))
+                  }
+                />
+              </View>
+            ))
+          )}
+        </Panel>
 
-        <PrimaryButton label="Back to Lobby" variant="secondary" onPress={() => navigation.goBack()} />
+        <PrimaryButton label="Back to lobby" variant="ghost" onPress={() => navigation.goBack()} />
       </ScrollView>
     </ScreenContainer>
   );

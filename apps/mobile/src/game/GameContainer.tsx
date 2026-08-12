@@ -46,7 +46,7 @@ export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>
         javaScriptEnabled
         domStorageEnabled={false}
         allowFileAccess={false}
-        style={{ flex: 1, backgroundColor: "#0f172a" }}
+        style={{ flex: 1, backgroundColor: "#0b1210" }}
       />
     );
   }

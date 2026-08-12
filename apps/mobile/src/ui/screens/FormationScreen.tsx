@@ -7,16 +7,10 @@ import { getHeroDefinition } from "../../state/heroCatalog";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { HeroCard } from "../components/HeroCard";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { Panel } from "../components/Panel";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Formation">;
 
-/**
- * Squad selection: pick which SQUAD_SIZE owned heroes enter the next
- * matchmaking battle. Grid positions are set in Phaser during the 20s prep.
- *
- * Tip: front row (nearest center) suits tank/knight/commander; back row
- * suits archer/mages/healer/assassin.
- */
 export function FormationScreen({ navigation }: Props) {
   const ownedHeroes = useHeroStore((state) => state.ownedHeroes);
   const selectedInstanceIds = useFormationStore((state) => state.selectedInstanceIds);
@@ -25,22 +19,41 @@ export function FormationScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer>
-      <View className="mb-2 flex-row items-baseline justify-between">
-        <Text className="text-2xl font-bold text-white">Formation Setup</Text>
-        <Text className={isComplete ? "text-accent" : "text-muted"}>
-          {selectedInstanceIds.length} / {SQUAD_SIZE}
-        </Text>
+      <View className="mb-3">
+        <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Prepare</Text>
+        <View className="mt-1 flex-row items-baseline justify-between">
+          <Text className="text-2xl font-bold text-ink">Your squad of {SQUAD_SIZE}</Text>
+          <Text className={`text-lg font-bold ${isComplete ? "text-accent" : "text-muted"}`}>
+            {selectedInstanceIds.length}/{SQUAD_SIZE}
+          </Text>
+        </View>
       </View>
-      <Text className="mb-2 text-muted">Choose {SQUAD_SIZE} heroes for Find Match.</Text>
-      <Text className="mb-4 text-xs text-muted">
-        Front row: tanks / knights / commander. Back row: archers / mages / healer / assassin.
-      </Text>
+
+      <Panel className="mb-4">
+        <Text className="text-sm font-semibold text-ink">Where should they stand?</Text>
+        <Text className="mt-1 text-xs leading-4 text-muted">
+          You only pick who goes into battle here. Exact grid spots are set in the 20-second prep
+          before the fight.
+        </Text>
+        <View className="mt-3 flex-row gap-2">
+          <View className="flex-1 rounded-xl border border-border bg-background px-3 py-2">
+            <Text className="text-[10px] font-bold uppercase text-accent">Front row</Text>
+            <Text className="mt-1 text-xs text-muted">Tank · Knight · Commander</Text>
+          </View>
+          <View className="flex-1 rounded-xl border border-border bg-background px-3 py-2">
+            <Text className="text-[10px] font-bold uppercase text-accent">Back row</Text>
+            <Text className="mt-1 text-xs text-muted">Archer · Mage · Healer · Assassin</Text>
+          </View>
+        </View>
+      </Panel>
 
       <FlatList
         data={ownedHeroes}
         keyExtractor={(hero) => hero.instanceId}
         numColumns={3}
-        ListEmptyComponent={<Text className="text-muted">No heroes yet — register or open Collection.</Text>}
+        ListEmptyComponent={
+          <Text className="text-muted">No heroes yet — finish registering, then open Collection.</Text>
+        }
         renderItem={({ item }) => (
           <HeroCard
             definition={getHeroDefinition(item.heroId)}
@@ -53,11 +66,12 @@ export function FormationScreen({ navigation }: Props) {
 
       <View className="gap-2 pb-2 pt-4">
         <PrimaryButton
-          label="Save Squad & Return to Lobby"
+          label="Save squad"
+          subtitle="Then Find Match from the lobby"
           disabled={!isComplete}
           onPress={() => navigation.navigate("Lobby")}
         />
-        <PrimaryButton label="Back" variant="secondary" onPress={() => navigation.goBack()} />
+        <PrimaryButton label="Back" variant="ghost" onPress={() => navigation.goBack()} />
       </View>
     </ScreenContainer>
   );

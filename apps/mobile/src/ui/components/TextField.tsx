@@ -19,16 +19,18 @@ export function TextField({
 }: TextFieldProps) {
   return (
     <View className="w-full">
-      <Text className="mb-1 text-xs font-medium uppercase tracking-wide text-muted">{label}</Text>
+      <Text className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+        {label}
+      </Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor="#64748b"
+        placeholderTextColor="#6b7a70"
         secureTextEntry={secureTextEntry}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
-        className="rounded-lg border border-slate-600 bg-surface px-4 py-3 text-white"
+        className="rounded-2xl border border-border bg-surface-raised px-4 py-3.5 text-ink"
       />
     </View>
   );

@@ -1,5 +1,5 @@
 import { io, type Socket } from "socket.io-client";
-import { useAuthStore } from "../../state/authStore";
+import { getAuthToken } from "../session";
 
 const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL ?? "http://localhost:3000";
 
@@ -10,7 +10,7 @@ export function getSocket(): Socket {
   if (!socket) {
     socket = io(SOCKET_URL, {
       autoConnect: false,
-      auth: (cb) => cb({ token: useAuthStore.getState().token }),
+      auth: (cb) => cb({ token: getAuthToken() }),
     });
   }
   return socket;

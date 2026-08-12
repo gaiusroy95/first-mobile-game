@@ -24,7 +24,11 @@ export function CollectionScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer>
-      <Text className="mb-4 text-2xl font-bold text-white">Hero Collection</Text>
+      <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Roster</Text>
+      <Text className="mb-1 mt-1 text-2xl font-bold text-ink">Hero collection</Text>
+      <Text className="mb-4 text-sm text-muted">
+        These are your fighters. Unlock more with hero cards earned from matches.
+      </Text>
       <FlatList
         data={ownedHeroes}
         keyExtractor={(hero) => hero.instanceId}
@@ -32,7 +36,7 @@ export function CollectionScreen({ navigation }: Props) {
         ListEmptyComponent={<Text className="text-muted">No heroes yet.</Text>}
         ListFooterComponent={
           <View className="mt-6 gap-3">
-            <Text className="text-lg font-semibold text-white">Locked / Unlockable</Text>
+            <Text className="text-lg font-semibold text-ink">Locked / Unlockable</Text>
             {locked.length === 0 ? (
               <Text className="text-muted">All heroes unlocked.</Text>
             ) : (

@@ -1,9 +1,9 @@
-import { useAuthStore } from "../../state/authStore";
+import { getAuthToken } from "../session";
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = useAuthStore.getState().token;
+  const token = getAuthToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {

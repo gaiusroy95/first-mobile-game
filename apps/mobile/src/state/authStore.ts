@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { login as loginApi, register as registerApi } from "../api/endpoints/auth";
 import { disconnectSocket } from "../api/socket/client";
+import { setAuthToken } from "../api/session";
 
 interface AuthState {
   token: string | null;
@@ -11,6 +12,20 @@ interface AuthState {
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string, displayName: string) => Promise<void>;
   logout: () => void;
+}
+
+function applySession(
+  set: (partial: Partial<AuthState>) => void,
+  response: { token: string; playerId: string; displayName: string }
+): void {
+  setAuthToken(response.token);
+  set({
+    token: response.token,
+    playerId: response.playerId,
+    displayName: response.displayName,
+    status: "idle",
+    error: null,
+  });
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -24,13 +39,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ status: "loading", error: null });
     try {
       const response = await loginApi(username, password);
-      set({
-        token: response.token,
-        playerId: response.playerId,
-        displayName: response.displayName,
-        status: "idle",
-      });
+      applySession(set, response);
     } catch (error) {
+      setAuthToken(null);
       set({
         status: "error",
         error: error instanceof Error ? error.message : "Login failed — is the backend running?",
@@ -43,13 +54,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ status: "loading", error: null });
     try {
       const response = await registerApi(username, password, displayName);
-      set({
-        token: response.token,
-        playerId: response.playerId,
-        displayName: response.displayName,
-        status: "idle",
-      });
+      applySession(set, response);
     } catch (error) {
+      setAuthToken(null);
       set({
         status: "error",
         error: error instanceof Error ? error.message : "Registration failed — is the backend running?",
@@ -60,6 +67,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     disconnectSocket();
+    setAuthToken(null);
     set({ token: null, playerId: null, displayName: null, status: "idle", error: null });
   },
 }));

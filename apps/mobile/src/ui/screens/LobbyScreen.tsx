@@ -1,14 +1,18 @@
 import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../state/authStore";
 import { usePlayerStore } from "../../state/playerStore";
 import { useHeroStore } from "../../state/heroStore";
 import { useMatchStore } from "../../state/matchStore";
+import { useFormationStore, SQUAD_SIZE } from "../../state/formationStore";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CurrencyBadge } from "../components/CurrencyBadge";
+import { HowToPlay } from "../components/HowToPlay";
+import { MenuRow } from "../components/MenuRow";
+import { Panel } from "../components/Panel";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Lobby">;
 
@@ -19,15 +23,20 @@ export function LobbyScreen({ navigation }: Props) {
   const gold = usePlayerStore((state) => state.gold);
   const trophies = usePlayerStore((state) => state.trophies);
   const gems = usePlayerStore((state) => state.gems);
+  const level = usePlayerStore((state) => state.level);
   const refreshProfile = usePlayerStore((state) => state.refreshProfile);
   const ownedHeroes = useHeroStore((state) => state.ownedHeroes);
   const fetchOwnedHeroes = useHeroStore((state) => state.fetchOwnedHeroes);
+  const selectedInstanceIds = useFormationStore((state) => state.selectedInstanceIds);
   const queueStatus = useMatchStore((state) => state.queueStatus);
   const queueError = useMatchStore((state) => state.queueError);
   const matchId = useMatchStore((state) => state.matchId);
   const findMatch = useMatchStore((state) => state.findMatch);
   const cancelQueue = useMatchStore((state) => state.cancelQueue);
   const bindSocket = useMatchStore((state) => state.bindSocket);
+
+  const canBattle = ownedHeroes.length >= 6;
+  const squadReady = selectedInstanceIds.length === SQUAD_SIZE;
 
   useEffect(() => {
     if (playerId) {
@@ -45,52 +54,93 @@ export function LobbyScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer>
-      <View className="flex-row items-center justify-between">
-        <View>
-          <Text className="text-xl font-bold text-white">{displayName ?? "Player"}</Text>
-          <Text className="text-xs text-muted">
-            {ownedHeroes.length} heroes · {trophies} trophies
-          </Text>
-        </View>
-        <View className="flex-row gap-2">
-          <CurrencyBadge amount={gold} />
-          <View className="flex-row items-center gap-1 rounded-full bg-surface px-3 py-1.5">
-            <Text className="font-semibold text-amber-300">{gems}✦</Text>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 20, gap: 16 }}>
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1">
+            <Text className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Commander</Text>
+            <Text className="mt-1 text-2xl font-bold text-ink">{displayName ?? "Player"}</Text>
+            <Text className="mt-1 text-xs text-muted">
+              Level {level} · {ownedHeroes.length} heroes owned
+            </Text>
+          </View>
+          <View className="items-end gap-1.5">
+            <CurrencyBadge amount={gold} kind="gold" />
+            <CurrencyBadge amount={trophies} kind="trophies" />
+            <CurrencyBadge amount={gems} kind="gems" />
           </View>
         </View>
-      </View>
 
-      <View className="flex-1 items-center justify-center gap-4">
-        <Text className="mb-2 text-2xl font-bold text-white">Main Lobby</Text>
-        {queueError ? <Text className="text-center text-sm text-red-400">{queueError}</Text> : null}
-        {queueStatus === "queued" ? (
-          <>
-            <Text className="text-muted">Searching for opponent...</Text>
-            <PrimaryButton label="Cancel Search" variant="secondary" onPress={() => void cancelQueue()} />
-          </>
-        ) : (
-          <PrimaryButton
-            label="Find Match"
-            onPress={() => void findMatch()}
-            disabled={ownedHeroes.length < 6}
+        <Panel>
+          <Text className="text-lg font-bold text-ink">Ready to fight?</Text>
+          <Text className="mt-1 text-sm leading-5 text-muted">
+            Queue against a real opponent. You get 20 seconds to place six heroes, then the battle
+            runs itself.
+          </Text>
+          {queueError ? <Text className="mt-2 text-sm text-danger">{queueError}</Text> : null}
+          {!canBattle ? (
+            <Text className="mt-2 text-sm text-accent">
+              You need at least 6 heroes — open Collection after registering.
+            </Text>
+          ) : null}
+          {canBattle && !squadReady ? (
+            <Text className="mt-2 text-sm text-muted">
+              Tip: set your squad in Formation first (optional — you can still place from your full
+              roster in battle).
+            </Text>
+          ) : null}
+
+          <View className="mt-4 gap-2">
+            {queueStatus === "queued" ? (
+              <>
+                <Text className="text-center text-sm text-accent">Searching for an opponent…</Text>
+                <PrimaryButton label="Cancel search" variant="secondary" onPress={() => void cancelQueue()} />
+              </>
+            ) : (
+              <PrimaryButton
+                label="Find match"
+                subtitle="Casual PvP · about 1–2 minutes"
+                onPress={() => void findMatch("casual")}
+                disabled={!canBattle}
+              />
+            )}
+          </View>
+        </Panel>
+
+        <View className="gap-2">
+          <Text className="mb-1 text-xs font-bold uppercase tracking-[0.14em] text-muted">Prepare</Text>
+          <MenuRow
+            title="Choose your 6"
+            subtitle="Pick who enters the next match"
+            onPress={() => navigation.navigate("Formation")}
           />
-        )}
-        <PrimaryButton label="Modes" onPress={() => navigation.navigate("Modes")} />
-        <PrimaryButton label="Hero Collection" onPress={() => navigation.navigate("Collection")} />
-        <PrimaryButton label="Formation Setup" onPress={() => navigation.navigate("Formation")} />
-        <PrimaryButton label="Upgrade Heroes" onPress={() => navigation.navigate("Upgrade")} />
-      </View>
+          <MenuRow
+            title="Hero collection"
+            subtitle="Browse roster, unlock new fighters"
+            onPress={() => navigation.navigate("Collection")}
+          />
+          <MenuRow
+            title="Upgrade heroes"
+            subtitle="Spend gold and materials to grow stronger"
+            onPress={() => navigation.navigate("Upgrade")}
+          />
+          <MenuRow
+            title="More modes"
+            subtitle="Ranked, Adventure, Events, Tournament"
+            onPress={() => navigation.navigate("Modes")}
+          />
+        </View>
 
-      <View className="pb-2">
+        <HowToPlay />
+
         <PrimaryButton
-          label="Log Out"
-          variant="secondary"
+          label="Log out"
+          variant="ghost"
           onPress={() => {
             logout();
             navigation.replace("Login");
           }}
         />
-      </View>
+      </ScrollView>
     </ScreenContainer>
   );
 }

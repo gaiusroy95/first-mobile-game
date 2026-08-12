@@ -1,17 +1,20 @@
-import { ActivityIndicator, Pressable, Text } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 interface PrimaryButtonProps {
   label: string;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   disabled?: boolean;
   loading?: boolean;
+  /** Short supporting line under the label (e.g. "1–2 min match"). */
+  subtitle?: string;
 }
 
 const VARIANT_CLASSES: Record<NonNullable<PrimaryButtonProps["variant"]>, string> = {
   primary: "bg-primary",
-  secondary: "bg-surface border border-slate-600",
-  danger: "bg-red-600",
+  secondary: "bg-surface-raised border border-border",
+  ghost: "bg-transparent border border-border",
+  danger: "bg-danger",
 };
 
 export function PrimaryButton({
@@ -20,6 +23,7 @@ export function PrimaryButton({
   variant = "primary",
   disabled = false,
   loading = false,
+  subtitle,
 }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
 
@@ -27,14 +31,23 @@ export function PrimaryButton({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
-      className={`items-center rounded-xl px-6 py-3 active:opacity-80 ${VARIANT_CLASSES[variant]} ${
+      className={`items-center rounded-2xl px-6 py-3.5 active:opacity-85 ${VARIANT_CLASSES[variant]} ${
         isDisabled ? "opacity-40" : ""
       }`}
     >
       {loading ? (
-        <ActivityIndicator color="#ffffff" />
+        <ActivityIndicator color="#eef2ea" />
       ) : (
-        <Text className="text-base font-semibold text-white">{label}</Text>
+        <View className="items-center">
+          <Text
+            className={`text-base font-bold tracking-wide ${
+              variant === "primary" || variant === "danger" ? "text-ink" : "text-ink"
+            }`}
+          >
+            {label}
+          </Text>
+          {subtitle ? <Text className="mt-0.5 text-xs text-white/70">{subtitle}</Text> : null}
+        </View>
       )}
     </Pressable>
   );
