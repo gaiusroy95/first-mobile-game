@@ -35,6 +35,8 @@ export class GameManager {
 
   handleInboundMessage(message: BridgeInboundMessage): void {
     switch (message.type) {
+      case "ACK_READY":
+        break;
       case "LOAD_HEROES":
         this.loadHeroes(message.payload.heroes, message.payload.localSide ?? "playerA");
         break;

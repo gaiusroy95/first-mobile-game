@@ -36,10 +36,18 @@ export class HeroPlacement {
 
   /** Lays the roster out along a bench row, each hero draggable onto the grid. */
   loadRoster(roster: RosterHero[], benchY: number): void {
+    this.destroyTokens();
     roster.forEach(({ instanceId, definition }, index) => {
       const x = 30 + index * (TOKEN_SIZE + 8);
       this.tokens.set(instanceId, this.createToken(instanceId, definition.name, definition.class, x, benchY));
     });
+  }
+
+  destroyTokens(): void {
+    for (const token of this.tokens.values()) {
+      token.gameObject.destroy(true);
+    }
+    this.tokens.clear();
   }
 
   /** Auto-places any bench heroes not yet on the grid into the remaining empty

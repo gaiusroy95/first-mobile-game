@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Param, Post, UseGuards } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "../common/jwt-auth.guard";
 import { CurrentPlayer, type AuthenticatedPlayer } from "../common/current-player.decorator";
@@ -16,7 +16,6 @@ export class BattlesController {
   // contention) for no effect.
   @Throttle({ default: { limit: 10, ttl: 10_000 } })
   @Post(":matchId/formation")
-  @HttpCode(204)
   submitFormation(
     @CurrentPlayer() player: AuthenticatedPlayer,
     @Param("matchId") matchId: string,

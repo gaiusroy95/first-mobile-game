@@ -19,8 +19,8 @@ export function RootNavigator() {
       <Stack.Screen name="Modes" component={ModesScreen} />
       <Stack.Screen name="Collection" component={CollectionScreen} />
       <Stack.Screen name="Formation" component={FormationScreen} />
-      <Stack.Screen name="Battle" component={BattleScreen} />
-      <Stack.Screen name="Victory" component={VictoryScreen} />
+      <Stack.Screen name="Battle" component={BattleScreen} options={{ gestureEnabled: false }} />
+      <Stack.Screen name="Victory" component={VictoryScreen} options={{ gestureEnabled: false }} />
       <Stack.Screen name="Upgrade" component={UpgradeScreen} />
     </Stack.Navigator>
   );

@@ -32,6 +32,9 @@ export class BattlesService {
   ) {}
 
   createMatch(playerAId: string, playerBId: string, mode = "casual"): Promise<MatchEntity> {
+    if (playerAId === playerBId) {
+      throw new BadRequestException("Cannot match a player against themselves");
+    }
     const match = this.matches.create({
       playerAId,
       playerBId,
@@ -41,14 +44,20 @@ export class BattlesService {
       formationDeadline: new Date(Date.now() + FORMATION_DEADLINE_SECONDS * 1000),
     });
     return this.matches.save(match).then((saved) => {
-      setTimeout(() => {
-        void this.lockExpiredMatch(saved.id);
-      }, (FORMATION_DEADLINE_SECONDS + 2) * 1000);
+      if (saved.mode !== "practice") {
+        setTimeout(() => {
+          void this.lockExpiredMatch(saved.id);
+        }, (FORMATION_DEADLINE_SECONDS + 2) * 1000);
+      }
       return saved;
     });
   }
 
-  async submitFormation(matchId: string, playerId: string, formation: Formation): Promise<void> {
+  async submitFormation(
+    matchId: string,
+    playerId: string,
+    formation: Formation
+  ): Promise<BattleResultPayload | null> {
     const match = await this.dataSource.transaction(async (manager) => {
       const current = await manager.findOne(MatchEntity, {
         where: { id: matchId },
@@ -59,6 +68,9 @@ export class BattlesService {
       const isPlayerA = current.playerAId === playerId;
       if (!isPlayerA && current.playerBId !== playerId) {
         throw new ForbiddenException("Not a participant in this match");
+      }
+      if (current.status === "complete" || current.status === "ready") {
+        return current;
       }
       if (current.status !== "pending") {
         throw new ForbiddenException("Formation already locked in for this match");
@@ -91,12 +103,18 @@ export class BattlesService {
       return manager.save(current);
     });
 
+    if (match.status === "complete") {
+      return this.payloadForPlayer(match, playerId);
+    }
+
     if (match.status === "ready") {
       const startPayload: BattleStartPayload = { matchId: match.id };
       this.realtime.emitToPlayer(match.playerAId, "battle:start", startPayload);
       this.realtime.emitToPlayer(match.playerBId, "battle:start", startPayload);
-      await this.resolve(match);
+      return this.resolve(match, playerId);
     }
+
+    return null;
   }
 
   /** If either side missed the 20s window, fill defaults and start the fight. */
@@ -155,7 +173,25 @@ export class BattlesService {
     }
   }
 
-  private async resolve(match: MatchEntity): Promise<void> {
+  private async payloadForPlayer(match: MatchEntity, playerId: string): Promise<BattleResultPayload> {
+    const row = await this.rewards.getForMatch(match.id, playerId);
+    return {
+      matchId: match.id,
+      winner: match.winnerId === match.playerAId ? "playerA" : "playerB",
+      events: match.eventLog ?? [],
+      rewards: {
+        gold: row?.gold ?? 0,
+        experience: row?.experience ?? 0,
+        trophyDelta: row?.trophyDelta,
+        heroCards: row?.heroCards ?? [],
+        materials: row?.materials ?? [],
+      },
+      formationA: match.formationA as Formation,
+      formationB: match.formationB as Formation,
+    };
+  }
+
+  private async resolve(match: MatchEntity, recipientId?: string): Promise<BattleResultPayload> {
     const heroesByInstanceId = await this.buildHeroMap(match.playerAId, match.playerBId);
     const manager = new BattleManager(
       match.formationA as Formation,
@@ -193,6 +229,7 @@ export class BattlesService {
     };
     this.realtime.emitToPlayer(match.playerAId, "battle:result", toPlayerA);
     this.realtime.emitToPlayer(match.playerBId, "battle:result", toPlayerB);
+    return recipientId === match.playerBId ? toPlayerB : toPlayerA;
   }
 
   private async buildHeroMap(playerAId: string, playerBId: string): Promise<Map<string, Hero>> {

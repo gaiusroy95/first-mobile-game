@@ -5,7 +5,7 @@ import type {
   PlayerSide,
   RosterHero,
 } from "@battle-formation/shared-types";
-import { getSocket } from "../api/socket/client";
+import { connectSocket, disconnectSocket, getSocket } from "../api/socket/client";
 import { joinQueue, leaveQueue, startPractice } from "../api/endpoints/matchmaking";
 
 type QueueStatus = "idle" | "queued" | "matched" | "error";
@@ -30,6 +30,7 @@ interface MatchState {
   bindSocket: (playerId: string) => void;
   unbindSocket: () => void;
   setWaitingForOpponent: (waiting: boolean) => void;
+  setBattleResult: (payload: BattleResultPayload) => void;
   clearMatch: () => void;
 }
 
@@ -52,7 +53,26 @@ function applyFound(payload: MatchFoundPayload, playerId: string) {
   };
 }
 
-export const useMatchStore = create<MatchState>((set) => ({
+function attachListeners(playerId: string, set: (partial: Partial<MatchState>) => void): void {
+  const socket = getSocket();
+  socket.off("matchmaking:found");
+  socket.off("battle:start");
+  socket.off("battle:result");
+
+  socket.on("matchmaking:found", (payload: MatchFoundPayload) => {
+    set(applyFound(payload, playerId));
+  });
+
+  socket.on("battle:start", () => {
+    set({ waitingForOpponent: false });
+  });
+
+  socket.on("battle:result", (payload: BattleResultPayload) => {
+    set({ battleResult: payload, waitingForOpponent: false });
+  });
+}
+
+export const useMatchStore = create<MatchState>((set, get) => ({
   queueStatus: "idle",
   queueError: null,
   matchId: null,
@@ -68,42 +88,29 @@ export const useMatchStore = create<MatchState>((set) => ({
 
   bindSocket: (playerId) => {
     boundPlayerId = playerId;
-    const socket = getSocket();
-    if (!socketBound) {
-      socket.connect();
+    attachListeners(playerId, set);
+    if (!socketBound || !getSocket().connected) {
       socketBound = true;
+      void connectSocket().catch((error) => {
+        set({
+          queueError: error instanceof Error ? error.message : "Could not connect to live matches",
+        });
+      });
     }
-
-    socket.off("matchmaking:found");
-    socket.off("battle:start");
-    socket.off("battle:result");
-
-    socket.on("matchmaking:found", (payload: MatchFoundPayload) => {
-      set(applyFound(payload, playerId));
-    });
-
-    socket.on("battle:start", () => {
-      set({ waitingForOpponent: false });
-    });
-
-    socket.on("battle:result", (payload: BattleResultPayload) => {
-      set({ battleResult: payload, waitingForOpponent: false });
-    });
   },
 
   unbindSocket: () => {
-    const socket = getSocket();
-    socket.off("matchmaking:found");
-    socket.off("battle:start");
-    socket.off("battle:result");
-    socket.disconnect();
+    disconnectSocket();
     socketBound = false;
     boundPlayerId = null;
   },
 
   findMatch: async (mode: "casual" | "ranked" = "casual") => {
+    if (get().queueStatus === "queued") return;
     set({ queueStatus: "queued", queueError: null, battleResult: null, isPractice: false });
     try {
+      await connectSocket();
+      if (boundPlayerId) attachListeners(boundPlayerId, set);
       const result = await joinQueue(mode);
       if (result.status === "matched" && result.match && boundPlayerId) {
         set({ ...applyFound(result.match, boundPlayerId), isPractice: false });
@@ -117,8 +124,11 @@ export const useMatchStore = create<MatchState>((set) => ({
   },
 
   practiceMatch: async () => {
+    if (get().queueStatus === "queued") return;
     set({ queueStatus: "queued", queueError: null, battleResult: null, isPractice: true });
     try {
+      await connectSocket();
+      if (boundPlayerId) attachListeners(boundPlayerId, set);
       const result = await startPractice();
       if (result.status === "matched" && result.match && boundPlayerId) {
         set({ ...applyFound(result.match, boundPlayerId), isPractice: true });
@@ -142,6 +152,12 @@ export const useMatchStore = create<MatchState>((set) => ({
   },
 
   setWaitingForOpponent: (waiting) => set({ waitingForOpponent: waiting }),
+
+  setBattleResult: (payload) => {
+    const current = get().battleResult;
+    if (current?.matchId === payload.matchId && current.events.length > 0) return;
+    set({ battleResult: payload, waitingForOpponent: false });
+  },
 
   clearMatch: () =>
     set({

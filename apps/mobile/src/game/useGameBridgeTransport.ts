@@ -36,11 +36,14 @@ export function useGameBridgeTransport({ postRaw, onFormationConfirmed, onBattle
 
     switch (message.type) {
       case "GAME_READY":
-        gameReady.current = true;
-        for (const queued of pendingMessages.current) {
-          postRaw(JSON.stringify(queued));
+        if (!gameReady.current) {
+          gameReady.current = true;
+          postRaw(JSON.stringify({ type: "ACK_READY" }));
+          for (const queued of pendingMessages.current) {
+            postRaw(JSON.stringify(queued));
+          }
+          pendingMessages.current = [];
         }
-        pendingMessages.current = [];
         break;
       case "FORMATION_CONFIRMED":
         onFormationConfirmed(message.payload.formation);

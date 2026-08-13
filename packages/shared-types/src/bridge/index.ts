@@ -5,6 +5,7 @@ import type { BattleEvent, BattleRewards, Formation, PlayerSide, RosterHero } fr
  * GameContainer sends these; GameManager is the only thing that reads them.
  */
 export type BridgeInboundMessage =
+  | { type: "ACK_READY" }
   | { type: "LOAD_HEROES"; payload: { heroes: RosterHero[]; localSide?: PlayerSide } }
   | { type: "START_FORMATION_PHASE"; payload: { durationSeconds: number } }
   | { type: "SET_FORMATION"; payload: { formations: [Formation, Formation] } }

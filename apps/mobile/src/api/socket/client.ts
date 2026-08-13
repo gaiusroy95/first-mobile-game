@@ -16,8 +16,37 @@ export function getSocket(): Socket {
   return socket;
 }
 
+export function connectSocket(): Promise<Socket> {
+  const current = getSocket();
+  if (current.connected) return Promise.resolve(current);
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      current.off("connect", onConnect);
+      current.off("connect_error", onError);
+      reject(new Error("Could not reach the game server. Check EXPO_PUBLIC_SOCKET_URL."));
+    }, 8000);
+
+    const onConnect = () => {
+      clearTimeout(timeout);
+      current.off("connect_error", onError);
+      resolve(current);
+    };
+    const onError = (error: Error) => {
+      clearTimeout(timeout);
+      current.off("connect", onConnect);
+      reject(error);
+    };
+
+    current.once("connect", onConnect);
+    current.once("connect_error", onError);
+    current.connect();
+  });
+}
+
 export function disconnectSocket(): void {
   if (socket) {
+    socket.removeAllListeners();
     socket.disconnect();
     socket = null;
   }

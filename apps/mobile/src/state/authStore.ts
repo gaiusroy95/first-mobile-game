@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { login as loginApi, register as registerApi } from "../api/endpoints/auth";
-import { disconnectSocket } from "../api/socket/client";
 import { setAuthToken } from "../api/session";
+import { useMatchStore } from "./matchStore";
+import { useHeroStore } from "./heroStore";
 
 interface AuthState {
   token: string | null;
@@ -66,7 +67,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    disconnectSocket();
+    useMatchStore.getState().unbindSocket();
+    useMatchStore.getState().clearMatch();
+    useHeroStore.getState().reset();
     setAuthToken(null);
     set({ token: null, playerId: null, displayName: null, status: "idle", error: null });
   },

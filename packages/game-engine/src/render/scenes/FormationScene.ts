@@ -149,6 +149,8 @@ export class FormationScene extends Phaser.Scene {
     this.grid.setLocalSide(localSide);
     this.drawGridSlots();
 
+    this.timer.stop();
+    this.placement?.destroyTokens();
     this.confirmed = false;
     this.onConfirmed = onConfirmed;
     this.position = new PositionManager(localSide);
@@ -189,5 +191,10 @@ export class FormationScene extends Phaser.Scene {
     const hint = result.warnings[0] ? ` · ${result.warnings[0]}` : "";
     this.statusText?.setText(`Locked in — waiting for opponent…${hint}`);
     this.onConfirmed(formation);
+  }
+
+  shutdown(): void {
+    this.timer.stop();
+    this.placement?.destroyTokens();
   }
 }

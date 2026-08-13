@@ -22,7 +22,9 @@ export function BattleScreen({ navigation }: Props) {
   const battleResult = useMatchStore((state) => state.battleResult);
   const waitingForOpponent = useMatchStore((state) => state.waitingForOpponent);
   const isPractice = useMatchStore((state) => state.isPractice);
+  const formationDeadline = useMatchStore((state) => state.formationDeadline);
   const setWaitingForOpponent = useMatchStore((state) => state.setWaitingForOpponent);
+  const setBattleResult = useMatchStore((state) => state.setBattleResult);
   const setResult = useBattleStore((state) => state.setResult);
   const selectedInstanceIds = useFormationStore((state) => state.selectedInstanceIds);
   const [phase, setPhase] = useState<"prep" | "waiting" | "fight">("prep");
@@ -46,9 +48,12 @@ export function BattleScreen({ navigation }: Props) {
         : localHeroes.slice(0, SQUAD_SIZE);
     const squad = picked.length === SQUAD_SIZE ? picked : localHeroes.slice(0, SQUAD_SIZE);
     const opponents = roster.filter((hero) => hero.side !== localSide);
+    const remainingSeconds = formationDeadline
+      ? Math.max(8, Math.ceil((Date.parse(formationDeadline) - Date.now()) / 1000))
+      : 20;
     gameRef.current?.loadHeroes([...squad, ...opponents], localSide);
-    gameRef.current?.startFormationPhase(20);
-  }, [matchId, localSide, roster, selectedInstanceIds]);
+    gameRef.current?.startFormationPhase(remainingSeconds);
+  }, [matchId, localSide, roster, selectedInstanceIds, formationDeadline]);
 
   useEffect(() => {
     if (!battleResult || playedResultRef.current) return;
@@ -69,7 +74,10 @@ export function BattleScreen({ navigation }: Props) {
         : "Formation locked. Waiting for your opponent to finish placing…"
     );
     try {
-      await submitFormation(matchId, { ...formation, playerId });
+      const payload = await submitFormation(matchId, { ...formation, playerId });
+      if (payload?.events?.length) {
+        setBattleResult(payload);
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Failed to submit formation");
       setWaitingForOpponent(false);

@@ -4,7 +4,6 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useBattleStore } from "../../state/battleStore";
 import { usePlayerStore } from "../../state/playerStore";
-import { useFormationStore } from "../../state/formationStore";
 import { useMatchStore } from "../../state/matchStore";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -17,12 +16,15 @@ export function VictoryScreen({ navigation }: Props) {
   const reset = useBattleStore((state) => state.reset);
   const applyReward = usePlayerStore((state) => state.applyReward);
   const refreshProfile = usePlayerStore((state) => state.refreshProfile);
-  const clearSquad = useFormationStore((state) => state.clear);
   const localSide = useMatchStore((state) => state.localSide);
   const clearMatch = useMatchStore((state) => state.clearMatch);
   const appliedRewards = useRef(false);
 
   const won = lastResult != null && localSide != null && lastResult.winner === localSide;
+  const outcomeRef = useRef<"win" | "loss" | null>(null);
+  if (lastResult && localSide) {
+    outcomeRef.current = won ? "win" : "loss";
+  }
 
   useEffect(() => {
     if (lastResult && !appliedRewards.current) {
@@ -34,10 +36,17 @@ export function VictoryScreen({ navigation }: Props) {
 
   const handleContinue = () => {
     reset();
-    clearSquad();
     clearMatch();
     navigation.popToTop();
   };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
+      reset();
+      clearMatch();
+    });
+    return unsubscribe;
+  }, [navigation, reset, clearMatch]);
 
   return (
     <ScreenContainer>
@@ -46,13 +55,13 @@ export function VictoryScreen({ navigation }: Props) {
           <Text className="text-xs font-bold uppercase tracking-[0.2em] text-muted">
             Match complete
           </Text>
-          <Text className={`mt-2 text-5xl font-bold ${won ? "text-accent" : "text-danger"}`}>
-            {won ? "Victory" : "Defeat"}
+          <Text className={`mt-2 text-5xl font-bold ${outcomeRef.current !== "loss" ? "text-accent" : "text-danger"}`}>
+            {outcomeRef.current === "loss" ? "Defeat" : "Victory"}
           </Text>
           <Text className="mt-3 max-w-xs text-center text-sm leading-5 text-muted">
-            {won
-              ? "Your formation held. Upgrade heroes or tweak the squad, then queue again."
-              : "Their lineup outplayed yours. Change who you bring — or where they stand — and rematch."}
+            {outcomeRef.current === "loss"
+              ? "Their lineup outplayed yours. Change who you bring — or where they stand — and rematch."
+              : "Your formation held. Upgrade heroes or tweak the squad, then queue again."}
           </Text>
         </View>
 

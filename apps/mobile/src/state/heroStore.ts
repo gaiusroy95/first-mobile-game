@@ -15,6 +15,7 @@ interface HeroState {
   upgradeHero: (instanceId: string) => Promise<void>;
   unlockHero: (heroId: string) => Promise<void>;
   equipCosmetic: (instanceId: string, cosmeticId: string | null) => Promise<void>;
+  reset: () => void;
 }
 
 export const useHeroStore = create<HeroState>((set, get) => ({
@@ -54,4 +55,6 @@ export const useHeroStore = create<HeroState>((set, get) => ({
       ownedHeroes: state.ownedHeroes.map((hero) => (hero.instanceId === instanceId ? updated : hero)),
     }));
   },
+
+  reset: () => set({ ownedHeroes: [], status: "idle", error: null }),
 }));

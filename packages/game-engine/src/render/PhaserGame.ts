@@ -65,11 +65,13 @@ export class PhaserGame {
   }
 
   playBattle(events: BattleEvent[], onComplete: () => void, localSide: PlayerSide = "playerA"): void {
-    this.battleScene?.setSideLookup(this.sideByInstanceId);
-    this.battleScene?.setClassLookup(this.classByInstanceId);
-    this.battleScene?.setLocalSide(localSide);
     this.game.scene.stop("Formation");
     this.game.scene.start("Battle");
-    this.battleScene?.playEvents(events, onComplete);
+    const battle = this.game.scene.getScene("Battle") as BattleScene;
+    this.battleScene = battle;
+    battle.setSideLookup(this.sideByInstanceId);
+    battle.setClassLookup(this.classByInstanceId);
+    battle.setLocalSide(localSide);
+    battle.playEvents(events, onComplete);
   }
 }

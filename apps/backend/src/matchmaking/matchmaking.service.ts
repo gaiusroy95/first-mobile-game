@@ -78,7 +78,7 @@ export class MatchmakingService implements OnModuleInit {
       1
     );
 
-    const opponentId = candidates[0];
+    const opponentId = candidates.find((id) => id !== playerId);
     if (!opponentId) {
       await client.zadd(queueKey, profile.trophies, playerId);
       return { status: "queued" };
