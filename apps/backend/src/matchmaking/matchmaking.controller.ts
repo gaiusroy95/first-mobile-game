@@ -23,6 +23,12 @@ export class MatchmakingController {
     return this.matchmaking.joinQueue(player.playerId, dto.mode ?? "casual");
   }
 
+  @Throttle({ default: { limit: 8, ttl: 10_000 } })
+  @Post("practice")
+  practice(@CurrentPlayer() player: AuthenticatedPlayer) {
+    return this.matchmaking.startPractice(player.playerId);
+  }
+
   @Delete("queue")
   leave(
     @CurrentPlayer() player: AuthenticatedPlayer,

@@ -70,4 +70,24 @@ export class PlayersService {
     updated.ownedCosmetics = [...(updated.ownedCosmetics ?? []), cosmeticId];
     return this.players.save(updated);
   }
+
+  /** System opponent for 1-device Practice matches. */
+  async ensurePracticeBot(username: string, displayName: string): Promise<Player> {
+    let bot = await this.players.findOne({ where: { username } });
+    if (!bot) {
+      const bcrypt = await import("bcrypt");
+      const passwordHash = await bcrypt.hash(`bot-${Date.now()}`, 10);
+      bot = await this.players.save(
+        this.players.create({
+          username,
+          passwordHash,
+          displayName,
+          gold: 0,
+          gems: 0,
+          trophies: 0,
+        })
+      );
+    }
+    return bot;
+  }
 }

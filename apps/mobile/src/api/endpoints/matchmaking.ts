@@ -10,6 +10,10 @@ export function joinQueue(mode: PvpMode = "casual"): Promise<QueueResult> {
   });
 }
 
+export function startPractice(): Promise<QueueResult> {
+  return apiFetch<QueueResult>("/matchmaking/practice", { method: "POST" });
+}
+
 export function leaveQueue(mode: PvpMode = "casual"): Promise<void> {
   return apiFetch<void>(`/matchmaking/queue?mode=${mode}`, { method: "DELETE" });
 }

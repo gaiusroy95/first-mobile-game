@@ -1,7 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, type EntityManager, In, Repository } from "typeorm";
-import { BattleManager, HeroManager, resolveHero, validateFormation } from "@battle-formation/game-engine";
+import {
+  BattleManager,
+  HeroManager,
+  allSlots,
+  resolveHero,
+  slotToCoordinate,
+  validateFormation,
+} from "@battle-formation/game-engine";
 import type { BattleResultPayload, BattleStartPayload, Formation, Hero } from "@battle-formation/shared-types";
 import { OwnedHeroEntity } from "../heroes/owned-hero.entity";
 import { RankingService } from "../ranking/ranking.service";
@@ -10,7 +17,7 @@ import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { MatchEntity } from "./match.entity";
 
 const heroManager = new HeroManager();
-/** Matches the client's prep timer duration (see apps/mobile FormationScene) - see match.entity.ts for why this is enforced here too. */
+/** Matches the client's prep timer duration (see apps/mobile FormationScene). */
 const FORMATION_DEADLINE_SECONDS = 20;
 
 @Injectable()
@@ -30,25 +37,12 @@ export class BattlesService {
       playerBId,
       status: "pending",
       mode,
-      // A per-match deterministic seed: the same two formations replayed
-      // with this seed always produce the same event log (see
-      // BattleManager), which is what makes the server-authoritative
-      // result reproducible and auditable after the fact.
       seed: Date.now().toString(),
       formationDeadline: new Date(Date.now() + FORMATION_DEADLINE_SECONDS * 1000),
     });
     return this.matches.save(match);
   }
 
-  /**
-   * Records one side's locked-in formation. Every check below runs inside
-   * a single row-locked transaction (`pessimistic_write`), which matters:
-   * without the lock, both players submitting within the same instant
-   * could each read "the other side is still empty," both write, and both
-   * independently observe "both sides are now full" - resolving (and
-   * rewarding) the same match twice. The lock serializes the two
-   * submissions so exactly one of them ever observes the completed pair.
-   */
   async submitFormation(matchId: string, playerId: string, formation: Formation): Promise<void> {
     const match = await this.dataSource.transaction(async (manager) => {
       const current = await manager.findOne(MatchEntity, {
@@ -61,9 +55,6 @@ export class BattlesService {
       if (!isPlayerA && current.playerBId !== playerId) {
         throw new ForbiddenException("Not a participant in this match");
       }
-      // Blocks resubmission after either both sides are in ("ready") or
-      // the match has already been simulated ("complete") - without this,
-      // a client could keep re-submitting to force repeated resolution.
       if (current.status !== "pending") {
         throw new ForbiddenException("Formation already locked in for this match");
       }
@@ -81,6 +72,14 @@ export class BattlesService {
       if (isPlayerA) current.formationA = formation;
       else current.formationB = formation;
 
+      // Practice vs bot: auto-lock the empty side so a single device can demo.
+      if (current.mode === "practice" && !(current.formationA && current.formationB)) {
+        const botId = isPlayerA ? current.playerBId : current.playerAId;
+        const botFormation = await this.buildDefaultFormation(manager, botId);
+        if (isPlayerA) current.formationB = botFormation;
+        else current.formationA = botFormation;
+      }
+
       if (current.formationA && current.formationB) {
         current.status = "ready";
       }
@@ -95,14 +94,20 @@ export class BattlesService {
     }
   }
 
-  /**
-   * Every hero instanceId in the submitted formation must be one this
-   * player actually owns. Without this, a client could field an army it
-   * doesn't have - someone else's heroes, a higher-level copy that was
-   * never granted, or an instanceId that doesn't exist at all - since
-   * nothing else about the formation shape reveals who's supposed to own
-   * what.
-   */
+  private async buildDefaultFormation(manager: EntityManager, playerId: string): Promise<Formation> {
+    const owned = await manager.find(OwnedHeroEntity, { where: { playerId }, take: 6 });
+    if (owned.length < 6) {
+      throw new BadRequestException("Opponent roster incomplete");
+    }
+    return {
+      playerId,
+      slots: allSlots().map((slot, index) => {
+        const { col, row } = slotToCoordinate(slot);
+        return { instanceId: owned[index]!.id, col, row };
+      }),
+    };
+  }
+
   private async assertOwnsFormation(manager: EntityManager, playerId: string, formation: Formation): Promise<void> {
     const instanceIds = formation.slots.map((slot) => slot.instanceId);
     if (instanceIds.length === 0) return;
@@ -113,15 +118,6 @@ export class BattlesService {
     }
   }
 
-  /**
-   * Runs the exact same BattleManager the client uses to preview/render a
-   * battle - the entire point of having built it deterministic and
-   * framework-agnostic. The server never trusts a client-reported winner
-   * or client-reported hero stats (buildHeroMap resolves stats from the
-   * database, never from anything the client sent); it recomputes the
-   * outcome itself and broadcasts the identical event log and reward to
-   * both participants.
-   */
   private async resolve(match: MatchEntity): Promise<void> {
     const heroesByInstanceId = await this.buildHeroMap(match.playerAId, match.playerBId);
     const manager = new BattleManager(
@@ -138,9 +134,6 @@ export class BattlesService {
     await this.matches.save(match);
 
     await this.ranking.applyMatchResult(match.playerAId, match.playerBId, match.winnerId, match.mode);
-    // Rewards are computed and persisted here, as a direct consequence of
-    // the server's own resolution - never in response to a client request
-    // (see RewardsService.grantForMatch).
     const rewards = await this.rewards.grantForMatch(match);
 
     const formationA = match.formationA as Formation;
@@ -165,7 +158,6 @@ export class BattlesService {
     this.realtime.emitToPlayer(match.playerBId, "battle:result", toPlayerB);
   }
 
-  /** Hero stats always come from the database (heroId + level) resolved against the shared game-engine catalog - never from anything a client submits. */
   private async buildHeroMap(playerAId: string, playerBId: string): Promise<Map<string, Hero>> {
     const owned = await this.heroes.find({ where: { playerId: In([playerAId, playerBId]) } });
     const map = new Map<string, Hero>();

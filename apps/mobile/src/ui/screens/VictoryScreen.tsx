@@ -67,13 +67,17 @@ export function VictoryScreen({ navigation }: Props) {
               />
             ) : null}
             {(lastResult.rewards.heroCards ?? []).map((card) => (
-              <RewardLine key={card.heroId} label="Hero card" value={`+${card.count} ${card.heroId}`} />
+              <RewardLine
+                key={card.heroId}
+                label="Hero card"
+                value={`+${card.count} ${prettyId(card.heroId)}`}
+              />
             ))}
             {(lastResult.rewards.materials ?? []).map((mat) => (
               <RewardLine
                 key={mat.materialId}
                 label="Material"
-                value={`+${mat.count} ${mat.materialId.replace("_", " ")}`}
+                value={`+${mat.count} ${prettyId(mat.materialId)}`}
               />
             ))}
           </Panel>
@@ -94,4 +98,8 @@ function RewardLine({ label, value }: { label: string; value: string }) {
       <Text className="text-sm font-semibold text-ink">{value}</Text>
     </View>
   );
+}
+
+function prettyId(id: string): string {
+  return id.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

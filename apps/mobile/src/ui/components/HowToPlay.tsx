@@ -10,12 +10,12 @@ const STEPS = [
   {
     n: "2",
     title: "Place them in 20 seconds",
-    body: "Your 3×2 grid is the whole strategy — no tapping during the fight.",
+    body: "Drag onto YOUR bottom grid. Confirm — then they fight alone.",
   },
   {
     n: "3",
-    title: "Watch them fight",
-    body: "Heroes move, attack, and cast on their own. Wipe the enemy team to win.",
+    title: "Watch HP and skills",
+    body: "Bars drain, numbers float, abilities flash. Wipe the enemy team to win.",
   },
 ] as const;
 

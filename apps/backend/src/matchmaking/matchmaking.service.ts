@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, OnModuleInit } from "@nestjs/common";
 import type { MatchFoundPayload } from "@battle-formation/shared-types";
 import { PlayersService } from "../players/players.service";
 import { BattlesService } from "../battles/battles.service";
@@ -9,11 +9,16 @@ import { RedisService } from "../common/redis.module";
 const RATING_WINDOW_CASUAL = 150;
 const RATING_WINDOW_RANKED = 80;
 
+/** Fixed system account used for 1-device Practice demos. */
+export const PRACTICE_BOT_USERNAME = "__practice_bot__";
+
 export type QueueResult = { status: "queued" } | { status: "matched"; matchId: string };
 export type PvpMode = "casual" | "ranked";
 
 @Injectable()
-export class MatchmakingService {
+export class MatchmakingService implements OnModuleInit {
+  private botPlayerId: string | null = null;
+
   constructor(
     private readonly redis: RedisService,
     private readonly players: PlayersService,
@@ -22,12 +27,38 @@ export class MatchmakingService {
     private readonly realtime: RealtimeGateway
   ) {}
 
+  async onModuleInit(): Promise<void> {
+    this.botPlayerId = await this.ensurePracticeBot();
+  }
+
+  getPracticeBotId(): string | null {
+    return this.botPlayerId;
+  }
+
   private queueKey(mode: PvpMode): string {
     return `matchmaking:queue:${mode}`;
   }
 
   private ratingWindow(mode: PvpMode): number {
     return mode === "ranked" ? RATING_WINDOW_RANKED : RATING_WINDOW_CASUAL;
+  }
+
+  /** One-device demo: instant match vs bot; bot auto-locks when you confirm. */
+  async startPractice(playerId: string): Promise<QueueResult> {
+    const botId = this.botPlayerId ?? (await this.ensurePracticeBot());
+    this.botPlayerId = botId;
+
+    const match = await this.battles.createMatch(playerId, botId, "practice");
+    await this.emitMatchFound(
+      match.id,
+      playerId,
+      botId,
+      match.playerAId,
+      match.playerBId,
+      match.formationDeadline,
+      { notifyOpponent: false }
+    );
+    return { status: "matched", matchId: match.id };
   }
 
   async joinQueue(playerId: string, mode: PvpMode = "casual"): Promise<QueueResult> {
@@ -74,14 +105,22 @@ export class MatchmakingService {
     await this.redis.client.zrem(this.queueKey(mode), playerId);
   }
 
+  private async ensurePracticeBot(): Promise<string> {
+    const bot = await this.players.ensurePracticeBot(PRACTICE_BOT_USERNAME, "Training Bot");
+    await this.heroes.grantStarterRoster(bot.id);
+    return bot.id;
+  }
+
   private async emitMatchFound(
     matchId: string,
     playerId: string,
     opponentId: string,
     playerAId: string,
     playerBId: string,
-    formationDeadline: Date
+    formationDeadline: Date,
+    options: { notifyOpponent?: boolean } = {}
   ): Promise<void> {
+    const notifyOpponent = options.notifyOpponent !== false;
     const [rosterA, rosterB] = await Promise.all([
       this.heroes.buildRoster(playerAId, "playerA"),
       this.heroes.buildRoster(playerBId, "playerB"),
@@ -97,15 +136,18 @@ export class MatchmakingService {
       formationDeadline: deadline,
       roster,
     };
-    const toOpponent: MatchFoundPayload = {
-      matchId,
-      opponentId: playerId,
-      playerAId,
-      playerBId,
-      formationDeadline: deadline,
-      roster,
-    };
     this.realtime.emitToPlayer(playerId, "matchmaking:found", toPlayer);
-    this.realtime.emitToPlayer(opponentId, "matchmaking:found", toOpponent);
+
+    if (notifyOpponent) {
+      const toOpponent: MatchFoundPayload = {
+        matchId,
+        opponentId: playerId,
+        playerAId,
+        playerBId,
+        formationDeadline: deadline,
+        roster,
+      };
+      this.realtime.emitToPlayer(opponentId, "matchmaking:found", toOpponent);
+    }
   }
 }

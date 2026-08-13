@@ -45,9 +45,16 @@ npm run web
 ## Online PvP smoke test
 
 1. Register two accounts (Login → Register).
-2. Both open Lobby → Find Match (or Modes → Casual/Ranked).
+2. Both open Lobby → Find real match (or Modes → Casual/Ranked).
 3. Each places 6 heroes within 20s and confirms.
 4. Both watch the same animated battle, then Victory with gold/XP/trophies/cards.
+
+## One-device Practice demo
+
+1. Register one account.
+2. Lobby → **Practice vs Bot**.
+3. Place 6 heroes on the bottom grid and Confirm — the bot locks automatically.
+4. Watch HP bars, damage numbers, and SFX, then claim rewards.
 
 ## Rebuild Phaser bundle after engine changes
 

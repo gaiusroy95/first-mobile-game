@@ -91,13 +91,17 @@ export class GameManager {
         type: "BATTLE_FINISHED",
         payload: { winner: result.winner, rewards: this.calculateRewards(result.winner) },
       });
-    });
+    }, this.localSide);
   }
 
   private playServerBattle(events: BattleEvent[], winner: PlayerSide, rewards: BattleRewards): void {
-    this.phaserGame.playBattle(events, () => {
-      this.send({ type: "BATTLE_FINISHED", payload: { winner, rewards } });
-    });
+    this.phaserGame.playBattle(
+      events,
+      () => {
+        this.send({ type: "BATTLE_FINISHED", payload: { winner, rewards } });
+      },
+      this.localSide
+    );
   }
 
   // Offline / practice fallback only - online matches use PLAY_BATTLE rewards.

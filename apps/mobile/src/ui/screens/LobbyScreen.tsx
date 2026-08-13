@@ -32,8 +32,10 @@ export function LobbyScreen({ navigation }: Props) {
   const queueError = useMatchStore((state) => state.queueError);
   const matchId = useMatchStore((state) => state.matchId);
   const findMatch = useMatchStore((state) => state.findMatch);
+  const practiceMatch = useMatchStore((state) => state.practiceMatch);
   const cancelQueue = useMatchStore((state) => state.cancelQueue);
   const bindSocket = useMatchStore((state) => state.bindSocket);
+  const isPractice = useMatchStore((state) => state.isPractice);
 
   const canBattle = ownedHeroes.length >= 6;
   const squadReady = selectedInstanceIds.length === SQUAD_SIZE;
@@ -73,8 +75,8 @@ export function LobbyScreen({ navigation }: Props) {
         <Panel>
           <Text className="text-lg font-bold text-ink">Ready to fight?</Text>
           <Text className="mt-1 text-sm leading-5 text-muted">
-            Queue against a real opponent. You get 20 seconds to place six heroes, then the battle
-            runs itself.
+            Start with Practice (one device), then queue real PvP when a second player is ready. You
+            get 20 seconds to place six heroes — then they fight on their own.
           </Text>
           {queueError ? <Text className="mt-2 text-sm text-danger">{queueError}</Text> : null}
           {!canBattle ? (
@@ -84,24 +86,37 @@ export function LobbyScreen({ navigation }: Props) {
           ) : null}
           {canBattle && !squadReady ? (
             <Text className="mt-2 text-sm text-muted">
-              Tip: set your squad in Formation first (optional — you can still place from your full
-              roster in battle).
+              Tip: pick your 6 in “Choose your 6” first (optional — you can still place from your
+              full roster in battle).
             </Text>
           ) : null}
 
           <View className="mt-4 gap-2">
             {queueStatus === "queued" ? (
               <>
-                <Text className="text-center text-sm text-accent">Searching for an opponent…</Text>
-                <PrimaryButton label="Cancel search" variant="secondary" onPress={() => void cancelQueue()} />
+                <Text className="text-center text-sm text-accent">
+                  {isPractice ? "Starting practice…" : "Searching for an opponent…"}
+                </Text>
+                {!isPractice ? (
+                  <PrimaryButton label="Cancel search" variant="secondary" onPress={() => void cancelQueue()} />
+                ) : null}
               </>
             ) : (
-              <PrimaryButton
-                label="Find match"
-                subtitle="Casual PvP · about 1–2 minutes"
-                onPress={() => void findMatch("casual")}
-                disabled={!canBattle}
-              />
+              <>
+                <PrimaryButton
+                  label="Practice vs Bot"
+                  subtitle="1 device · instant demo match"
+                  onPress={() => void practiceMatch()}
+                  disabled={!canBattle}
+                />
+                <PrimaryButton
+                  label="Find real match"
+                  subtitle="Casual PvP · needs a second player"
+                  variant="secondary"
+                  onPress={() => void findMatch("casual")}
+                  disabled={!canBattle}
+                />
+              </>
             )}
           </View>
         </Panel>
@@ -110,7 +125,7 @@ export function LobbyScreen({ navigation }: Props) {
           <Text className="mb-1 text-xs font-bold uppercase tracking-[0.14em] text-muted">Prepare</Text>
           <MenuRow
             title="Choose your 6"
-            subtitle="Pick who enters the next match"
+            subtitle="Pick who enters the next match (placement is in-battle)"
             onPress={() => navigation.navigate("Formation")}
           />
           <MenuRow

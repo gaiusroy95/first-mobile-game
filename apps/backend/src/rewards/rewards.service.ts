@@ -52,17 +52,20 @@ export class RewardsService {
     }
 
     const won = match.winnerId === playerId;
+    const isPractice = match.mode === "practice";
     const base = won ? WIN_REWARD : LOSS_REWARD;
-    const trophyDelta = won ? TROPHY_WIN : TROPHY_LOSS;
-    const heroCards = [{ heroId: "commander-01", count: won ? 2 : 1 }];
+    const gold = isPractice ? Math.floor(base.gold / 2) : base.gold;
+    const experience = isPractice ? Math.floor(base.experience / 2) : base.experience;
+    const trophyDelta = isPractice ? 0 : won ? TROPHY_WIN : TROPHY_LOSS;
+    const heroCards = [{ heroId: "commander-01", count: won ? (isPractice ? 1 : 2) : 1 }];
     const materials = [
-      { materialId: "essence_common", count: won ? 3 : 1 },
-      { materialId: "essence_rare", count: won ? 1 : 0 },
+      { materialId: "essence_common", count: won ? (isPractice ? 1 : 3) : 1 },
+      { materialId: "essence_rare", count: won && !isPractice ? 1 : 0 },
     ].filter((m) => m.count > 0);
 
     const reward: BattleRewards = {
-      gold: base.gold,
-      experience: base.experience,
+      gold,
+      experience,
       trophyDelta,
       heroCards,
       materials,

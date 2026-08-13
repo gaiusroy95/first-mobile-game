@@ -6,9 +6,29 @@ export type PlayerSide = "playerA" | "playerB";
  * the simulation and the renderer until handled on both sides.
  */
 export type BattleEvent =
-  | { type: "spawn"; tick: number; instanceId: string; col: number; row: number }
+  | {
+      type: "spawn";
+      tick: number;
+      instanceId: string;
+      col: number;
+      row: number;
+      /** Max HP at battle start — renderer uses this to drive HP bars. */
+      maxHp: number;
+      heroClass: string;
+      name: string;
+    }
   | { type: "move"; tick: number; instanceId: string; toCol: number; toRow: number }
-  | { type: "attack"; tick: number; sourceId: string; targetId: string; damage: number }
+  | {
+      type: "attack";
+      tick: number;
+      sourceId: string;
+      targetId: string;
+      damage: number;
+      remainingHp: number;
+    }
+  /** Ability / effect damage that is not a basic attack lunge. */
+  | { type: "damage"; tick: number; targetId: string; amount: number; remainingHp: number }
+  | { type: "heal"; tick: number; targetId: string; amount: number; remainingHp: number }
   | { type: "ability"; tick: number; sourceId: string; abilityId: string; targetIds: string[] }
   | { type: "death"; tick: number; instanceId: string }
   | { type: "victory"; tick: number; winner: PlayerSide };

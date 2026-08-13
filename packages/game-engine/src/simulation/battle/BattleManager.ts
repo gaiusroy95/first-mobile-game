@@ -104,6 +104,9 @@ export class BattleManager {
         instanceId: entity.instanceId,
         col: entity.col,
         row: entity.row,
+        maxHp: entity.hero.hp,
+        heroClass: entity.hero.class,
+        name: entity.hero.name,
       });
     }
 
@@ -209,14 +212,15 @@ export class BattleManager {
       entity.aiState = "ATTACK";
       entity.combat.startAttackCooldown();
       const damage = calculateDamage(entity.getEffectiveStat("attack"), target.getEffectiveStat("defense"));
+      this.applyDamage(target, damage, { emitHitEvent: false });
       this.events.push({
         type: "attack",
         tick: this.currentTick,
         sourceId: entity.instanceId,
         targetId: target.instanceId,
         damage,
+        remainingHp: target.currentHp,
       });
-      this.applyDamage(target, damage);
       return;
     }
 
@@ -255,7 +259,16 @@ export class BattleManager {
       enemies: this.entities.filter((entity) => entity.side !== caster.side && entity.alive),
       effects: {
         dealDamage: (target, amount) => this.applyDamage(target, amount),
-        heal: (target, amount) => target.heal(amount),
+        heal: (target, amount) => {
+          target.heal(amount);
+          this.events.push({
+            type: "heal",
+            tick: this.currentTick,
+            targetId: target.instanceId,
+            amount,
+            remainingHp: target.currentHp,
+          });
+        },
         applyShield: (target, amount) => target.addShield(amount, durationTicks),
         applyBuff: (target, stat, power) => target.addEffect({ kind: "buff", stat, power, remainingTicks: durationTicks }),
         applyFreeze: (target) => target.addEffect({ kind: "freeze", power: 1, remainingTicks: durationTicks }),
@@ -264,8 +277,22 @@ export class BattleManager {
     };
   }
 
-  private applyDamage(target: HeroEntity, amount: number): void {
+  private applyDamage(
+    target: HeroEntity,
+    amount: number,
+    options: { emitHitEvent?: boolean } = {}
+  ): void {
+    const emitHitEvent = options.emitHitEvent !== false;
     target.takeDamage(amount);
+    if (emitHitEvent) {
+      this.events.push({
+        type: "damage",
+        tick: this.currentTick,
+        targetId: target.instanceId,
+        amount,
+        remainingHp: target.currentHp,
+      });
+    }
     if (!target.alive) {
       this.events.push({ type: "death", tick: this.currentTick, instanceId: target.instanceId });
       this.checkOutcome();

@@ -49,7 +49,7 @@ export class FormationScene extends Phaser.Scene {
     generatePlaceholders(this);
     createHeroAnimations(this);
 
-    this.cameras.main.setBackgroundColor("#0f172a");
+    this.cameras.main.setBackgroundColor("#0b1210");
     this.grid = new GridManager({
       viewportWidth: this.scale.width,
       viewportHeight: this.scale.height,
@@ -57,23 +57,48 @@ export class FormationScene extends Phaser.Scene {
     this.drawGridSlots();
 
     this.timerText = this.add
-      .text(this.scale.width / 2, 20, "", { fontSize: "18px", color: "#f59e0b" })
+      .text(this.scale.width / 2, 16, "", { fontSize: "20px", color: "#d4a84b", fontStyle: "bold" })
       .setOrigin(0.5, 0);
     this.statusText = this.add
-      .text(this.scale.width / 2, 46, "Waiting for heroes...", {
+      .text(this.scale.width / 2, 44, "Drag heroes onto YOUR grid (bottom)", {
         fontSize: "12px",
-        color: "#94a3b8",
+        color: "#c8b8a4",
+        align: "center",
+        wordWrap: { width: this.scale.width - 40 },
       })
       .setOrigin(0.5, 0);
 
     this.add
-      .text(this.scale.width / 2, this.scale.height - 24, "[ Confirm Formation ]", {
-        fontSize: "14px",
-        color: "#22c55e",
+      .text(this.scale.width / 2, this.scale.height * 0.12, "ENEMY", {
+        fontSize: "11px",
+        color: "#64748b",
+        fontStyle: "bold",
       })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on("pointerup", () => this.confirm());
+      .setOrigin(0.5);
+    this.add
+      .text(this.scale.width / 2, this.scale.height * 0.78, "YOU · front row faces center", {
+        fontSize: "11px",
+        color: "#d4a84b",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
+    const btnY = this.scale.height - 36;
+    const btn = this.add.rectangle(this.scale.width / 2, btnY, 220, 40, 0xc45c26, 1).setInteractive({
+      useHandCursor: true,
+    });
+    btn.setStrokeStyle(2, 0xd4a84b, 0.9);
+    const btnLabel = this.add
+      .text(this.scale.width / 2, btnY, "CONFIRM FORMATION", {
+        fontSize: "13px",
+        color: "#f5ebe0",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    btn.on("pointerover", () => btn.setFillStyle(0xd4682e));
+    btn.on("pointerout", () => btn.setFillStyle(0xc45c26));
+    btn.on("pointerup", () => this.confirm());
+    void btnLabel;
   }
 
   private drawGridSlots(): void {
@@ -82,9 +107,9 @@ export class FormationScene extends Phaser.Scene {
     for (const side of ["playerA", "playerB"] as const) {
       for (const slot of allSlots()) {
         const { x, y } = this.grid.getSlotPosition(side, slot);
-        this.add
-          .rectangle(x, y, size, size, side === "playerA" ? 0x1e293b : 0x312e1e)
-          .setStrokeStyle(1, 0x475569);
+        const fill = side === "playerA" ? 0x243528 : 0x3a2230;
+        const stroke = side === "playerA" ? 0xd4a84b : 0x64748b;
+        this.add.rectangle(x, y, size, size, fill, 0.75).setStrokeStyle(1.5, stroke, 0.7);
       }
     }
   }
@@ -119,7 +144,7 @@ export class FormationScene extends Phaser.Scene {
   private refreshStatus(): void {
     if (!this.position || this.confirmed) return;
     const placed = allSlots().filter((slot) => this.position!.getOccupant(slot) !== undefined).length;
-    this.statusText?.setText(`${placed} / 6 heroes placed`);
+    this.statusText?.setText(`${placed} / 6 on your grid — tanks front, damage back`);
   }
 
   private confirm(): void {
@@ -128,14 +153,14 @@ export class FormationScene extends Phaser.Scene {
     const formation = this.position.toFormation();
     const result = validateFormation(formation);
     if (!result.valid) {
-      this.statusText?.setText(result.errors[0] ?? "Formation incomplete");
+      this.statusText?.setText(result.errors[0] ?? "Place all 6 heroes first");
       return;
     }
 
     this.confirmed = true;
     this.timer.stop();
-    const hint = result.warnings[0] ? ` (${result.warnings[0]})` : "";
-    this.statusText?.setText(`Formation locked in - waiting for opponent...${hint}`);
+    const hint = result.warnings[0] ? ` · ${result.warnings[0]}` : "";
+    this.statusText?.setText(`Locked in — waiting for opponent…${hint}`);
     this.onConfirmed(formation);
   }
 }

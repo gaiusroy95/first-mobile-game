@@ -67,7 +67,7 @@ export function FormationScreen({ navigation }: Props) {
       <View className="gap-2 pb-2 pt-4">
         <PrimaryButton
           label="Save squad"
-          subtitle="Then Find Match from the lobby"
+          subtitle="Then Practice or Find Match from the lobby"
           disabled={!isComplete}
           onPress={() => navigation.navigate("Lobby")}
         />

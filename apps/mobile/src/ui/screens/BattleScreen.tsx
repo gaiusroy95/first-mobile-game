@@ -20,6 +20,7 @@ export function BattleScreen({ navigation }: Props) {
   const roster = useMatchStore((state) => state.roster);
   const battleResult = useMatchStore((state) => state.battleResult);
   const waitingForOpponent = useMatchStore((state) => state.waitingForOpponent);
+  const isPractice = useMatchStore((state) => state.isPractice);
   const setWaitingForOpponent = useMatchStore((state) => state.setWaitingForOpponent);
   const setResult = useBattleStore((state) => state.setResult);
   const [phase, setPhase] = useState<"prep" | "waiting" | "fight">("prep");
@@ -53,7 +54,11 @@ export function BattleScreen({ navigation }: Props) {
     if (!matchId || !playerId) return;
     setWaitingForOpponent(true);
     setPhase("waiting");
-    setStatus("Formation locked. Waiting for your opponent to finish placing…");
+    setStatus(
+      isPractice
+        ? "Formation locked. Training Bot is locking in…"
+        : "Formation locked. Waiting for your opponent to finish placing…"
+    );
     try {
       await submitFormation(matchId, { ...formation, playerId });
     } catch (error) {

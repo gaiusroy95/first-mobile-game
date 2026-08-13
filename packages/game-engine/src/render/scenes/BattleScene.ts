@@ -4,6 +4,7 @@ import { TICK_RATE } from "../../simulation/battle/constants";
 import { coordinateToSlot } from "../../simulation/formation/grid";
 import { GridManager } from "../systems/GridManager";
 import { HERO_SPRITES, EFFECT_SPRITES, createHeroAnimations, generatePlaceholders, preloadAssets } from "../assets";
+import { SoundManager } from "../assets";
 
 interface UnitView {
   container: Phaser.GameObjects.Container;
@@ -11,21 +12,33 @@ interface UnitView {
   hpBar: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
   side: PlayerSide;
-  maxHpHint: number;
+  maxHp: number;
+  currentHp: number;
 }
 
 const TOKEN_SIZE = 48;
 /** Playback speed: real ms per simulated tick. */
 const MS_PER_TICK = 1000 / TICK_RATE;
 
-import { SoundManager } from "../assets";
+const CLASS_LABEL: Record<string, string> = {
+  commander: "CMD",
+  tank: "TNK",
+  knight: "KNT",
+  archer: "ARC",
+  "fire-mage": "FIR",
+  "ice-mage": "ICE",
+  assassin: "ASN",
+  healer: "HLR",
+};
 
 /**
- * Plays a deterministic battle event log with placeholder units on the
- * mirrored boards.
+ * Plays a deterministic battle event log with readable units, draining HP
+ * bars, floating numbers, and procedural SFX.
  */
 export class BattleScene extends Phaser.Scene {
   private statusText?: Phaser.GameObjects.Text;
+  private youLabel?: Phaser.GameObjects.Text;
+  private foeLabel?: Phaser.GameObjects.Text;
   private heroCatalog: HeroDefinition[] = [];
   private sideByInstanceId = new Map<string, PlayerSide>();
   private classByInstanceId = new Map<string, HeroClass>();
@@ -34,6 +47,7 @@ export class BattleScene extends Phaser.Scene {
   private sounds?: SoundManager;
   private pendingPlayback?: { events: BattleEvent[]; onComplete: () => void };
   private playbackToken = 0;
+  private localSide: PlayerSide = "playerA";
 
   constructor() {
     super("Battle");
@@ -48,15 +62,19 @@ export class BattleScene extends Phaser.Scene {
     createHeroAnimations(this);
     this.sounds = new SoundManager(this);
 
-    this.cameras.main.setBackgroundColor("#0f172a");
+    this.cameras.main.setBackgroundColor("#0b1210");
     this.grid = new GridManager({
       viewportWidth: this.scale.width,
       viewportHeight: this.scale.height,
     });
-    this.drawBoards();
+    this.drawArena();
 
     this.statusText = this.add
-      .text(this.scale.width / 2, 16, "Battle", { fontSize: "16px", color: "#f8fafc" })
+      .text(this.scale.width / 2, 14, "Battle", {
+        fontSize: "15px",
+        color: "#f5ebe0",
+        fontStyle: "bold",
+      })
       .setOrigin(0.5, 0);
 
     if (this.heroCatalog.length > 0) {
@@ -81,9 +99,15 @@ export class BattleScene extends Phaser.Scene {
     this.classByInstanceId = classByInstanceId;
   }
 
+  setLocalSide(side: PlayerSide): void {
+    this.localSide = side;
+    this.youLabel?.setText(side === "playerA" ? "YOU" : "ENEMY");
+    this.foeLabel?.setText(side === "playerA" ? "ENEMY" : "YOU");
+  }
+
   setFormation(formations: [Formation, Formation]): void {
     void formations;
-    this.statusText?.setText("Formations locked — starting battle");
+    this.statusText?.setText("Formations locked — fight!");
   }
 
   /** Plays an event log and invokes onComplete once playback finishes. */
@@ -96,7 +120,8 @@ export class BattleScene extends Phaser.Scene {
     this.playbackToken += 1;
     const token = this.playbackToken;
     this.clearUnits();
-    this.statusText.setText("Battle in progress...");
+    this.statusText.setText("Battle in progress…");
+    this.sounds?.play("music.battle");
 
     const sorted = [...events].sort((a, b) => a.tick - b.tick);
     let index = 0;
@@ -117,7 +142,7 @@ export class BattleScene extends Phaser.Scene {
       }
 
       const nextTick = sorted[index]?.tick;
-      const delay = nextTick === undefined ? 400 : Math.max(40, (nextTick - currentTick) * MS_PER_TICK);
+      const delay = nextTick === undefined ? 450 : Math.max(35, (nextTick - currentTick) * MS_PER_TICK);
       this.time.delayedCall(delay, step);
     };
 
@@ -127,14 +152,21 @@ export class BattleScene extends Phaser.Scene {
   private applyEvent(event: BattleEvent): void {
     switch (event.type) {
       case "spawn":
-        this.spawnUnit(event.instanceId, event.col, event.row);
+        this.spawnUnit(event);
         break;
       case "move":
         this.moveUnit(event.instanceId, event.toCol, event.toRow);
         break;
       case "attack":
-        this.flashAttack(event.sourceId, event.targetId, event.damage);
+        this.flashAttack(event.sourceId, event.targetId, event.damage, event.remainingHp);
         this.sounds?.play("sfx.attack");
+        break;
+      case "damage":
+        this.applyHp(event.targetId, event.remainingHp, event.amount, false);
+        this.sounds?.play("sfx.attack");
+        break;
+      case "heal":
+        this.applyHp(event.targetId, event.remainingHp, event.amount, true);
         break;
       case "ability":
         this.flashAbility(event.sourceId, event.targetIds);
@@ -144,32 +176,54 @@ export class BattleScene extends Phaser.Scene {
         this.killUnit(event.instanceId);
         this.sounds?.play("sfx.death");
         break;
-      case "victory":
-        this.statusText?.setText(event.winner === "playerA" ? "Player A wins" : "Player B wins");
-        this.sounds?.play("sfx.victory");
+      case "victory": {
+        const youWon = event.winner === this.localSide;
+        this.statusText?.setText(youWon ? "Victory!" : "Defeat");
+        this.sounds?.play(youWon ? "sfx.victory" : "sfx.defeat");
         break;
+      }
     }
   }
 
-  private spawnUnit(instanceId: string, col: number, row: number): void {
+  private spawnUnit(event: Extract<BattleEvent, { type: "spawn" }>): void {
     if (!this.grid) return;
+    const instanceId = event.instanceId;
     const side = this.sideByInstanceId.get(instanceId) ?? "playerA";
-    const heroClass = this.classByInstanceId.get(instanceId) ?? this.inferClass(instanceId);
+    const heroClass = (event.heroClass as HeroClass) || this.classByInstanceId.get(instanceId) || this.inferClass(instanceId);
     this.classByInstanceId.set(instanceId, heroClass);
 
-    const slot = coordinateToSlot(col as 0 | 1 | 2, row as 0 | 1);
+    const slot = coordinateToSlot(event.col as 0 | 1 | 2, event.row as 0 | 1);
     const { x, y } = this.grid.getSlotPosition(side, slot);
 
     const sprite = this.add.sprite(0, 0, HERO_SPRITES[heroClass].key);
+    const short = CLASS_LABEL[heroClass] ?? heroClass.slice(0, 3).toUpperCase();
     const label = this.add
-      .text(0, 14, heroClass.slice(0, 2).toUpperCase(), { fontSize: "10px", color: "#ffffff" })
+      .text(0, 18, short, {
+        fontSize: "9px",
+        color: "#f5ebe0",
+        fontStyle: "bold",
+        backgroundColor: "#00000088",
+        padding: { x: 3, y: 1 },
+      })
       .setOrigin(0.5);
     const hpBar = this.add.graphics();
+    const maxHp = Math.max(1, event.maxHp ?? 1);
     this.drawHpBar(hpBar, 1);
 
-    const container = this.add.container(x, y, [sprite, hpBar, label]);
+    const ring = this.add.circle(0, 0, 26, side === "playerA" ? 0xc45c26 : 0x3d5a80, 0.18);
+    ring.setStrokeStyle(2, side === this.localSide ? 0xd4a84b : 0x94a3b8, 0.85);
+
+    const container = this.add.container(x, y, [ring, sprite, hpBar, label]);
     container.setSize(TOKEN_SIZE, TOKEN_SIZE);
-    this.units.set(instanceId, { container, sprite, hpBar, label, side, maxHpHint: 1 });
+    this.units.set(instanceId, {
+      container,
+      sprite,
+      hpBar,
+      label,
+      side,
+      maxHp,
+      currentHp: maxHp,
+    });
   }
 
   private moveUnit(instanceId: string, toCol: number, toRow: number): void {
@@ -186,41 +240,83 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private flashAttack(sourceId: string, targetId: string, damage: number): void {
+  private flashAttack(sourceId: string, targetId: string, damage: number, remainingHp: number): void {
     const source = this.units.get(sourceId);
     const target = this.units.get(targetId);
-    if (source) {
+    if (source && target) {
+      const ox = source.container.x;
+      const oy = source.container.y;
+      const dx = (target.container.x - ox) * 0.18;
+      const dy = (target.container.y - oy) * 0.18;
       this.tweens.add({
         targets: source.container,
-        scale: 1.15,
+        x: ox + dx,
+        y: oy + dy,
+        yoyo: true,
+        duration: 90,
+        ease: "Quad.easeOut",
+      });
+    } else if (source) {
+      this.tweens.add({
+        targets: source.container,
+        scale: 1.12,
         yoyo: true,
         duration: 90,
       });
     }
-    if (target) {
-      target.sprite.setTint(0xef4444);
-      this.time.delayedCall(120, () => target.sprite.clearTint());
-      const flash = this.add.circle(target.container.x, target.container.y, 10, 0xef4444, 0.6);
-      this.tweens.add({
-        targets: flash,
-        alpha: 0,
-        scale: 2,
-        duration: 200,
-        onComplete: () => flash.destroy(),
-      });
-      void damage;
+    this.applyHp(targetId, remainingHp, damage, false);
+  }
+
+  private applyHp(targetId: string, remainingHp: number, amount: number, isHeal: boolean): void {
+    const target = this.units.get(targetId);
+    if (!target) return;
+
+    target.currentHp = Math.max(0, Math.min(target.maxHp, remainingHp));
+    this.drawHpBar(target.hpBar, target.currentHp / target.maxHp);
+
+    if (isHeal) {
+      target.sprite.setTint(0x4ade80);
+      this.time.delayedCall(140, () => target.sprite.clearTint());
+      this.floatNumber(target.container.x, target.container.y - 20, `+${Math.round(amount)}`, "#4ade80");
+      return;
     }
+
+    target.sprite.setTint(0xef4444);
+    this.time.delayedCall(120, () => target.sprite.clearTint());
+    const flash = this.add.circle(target.container.x, target.container.y, 10, 0xef4444, 0.55);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      scale: 2.2,
+      duration: 200,
+      onComplete: () => flash.destroy(),
+    });
+    this.floatNumber(target.container.x, target.container.y - 22, `-${Math.round(amount)}`, "#fecaca");
+  }
+
+  private floatNumber(x: number, y: number, text: string, color: string): void {
+    const label = this.add
+      .text(x, y, text, { fontSize: "14px", color, fontStyle: "bold", stroke: "#0b1210", strokeThickness: 3 })
+      .setOrigin(0.5);
+    this.tweens.add({
+      targets: label,
+      y: y - 28,
+      alpha: 0,
+      duration: 520,
+      ease: "Cubic.easeOut",
+      onComplete: () => label.destroy(),
+    });
   }
 
   private flashAbility(sourceId: string, targetIds: string[]): void {
     const source = this.units.get(sourceId);
     if (source) {
-      const ring = this.add.circle(source.container.x, source.container.y, 8, 0xfacc15, 0.7);
+      const ring = this.add.circle(source.container.x, source.container.y, 8, 0xd4a84b, 0.75);
       this.tweens.add({
         targets: ring,
         alpha: 0,
-        scale: 3,
-        duration: 280,
+        scale: 3.2,
+        duration: 300,
         onComplete: () => ring.destroy(),
       });
     }
@@ -228,12 +324,12 @@ export class BattleScene extends Phaser.Scene {
       const target = this.units.get(targetId);
       if (!target) continue;
       const fx = this.add.sprite(target.container.x, target.container.y, EFFECT_SPRITES.buff.key);
-      fx.setAlpha(0.8);
+      fx.setAlpha(0.85);
       this.tweens.add({
         targets: fx,
         alpha: 0,
-        y: target.container.y - 24,
-        duration: 320,
+        y: target.container.y - 26,
+        duration: 340,
         onComplete: () => fx.destroy(),
       });
     }
@@ -242,11 +338,13 @@ export class BattleScene extends Phaser.Scene {
   private killUnit(instanceId: string): void {
     const unit = this.units.get(instanceId);
     if (!unit) return;
+    this.drawHpBar(unit.hpBar, 0);
     this.tweens.add({
       targets: unit.container,
       alpha: 0,
-      scale: 0.4,
-      duration: 220,
+      scale: 0.35,
+      duration: 280,
+      ease: "Back.easeIn",
       onComplete: () => {
         unit.container.destroy(true);
         this.units.delete(instanceId);
@@ -255,11 +353,13 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private drawHpBar(g: Phaser.GameObjects.Graphics, ratio: number): void {
+    const clamped = Math.max(0, Math.min(1, ratio));
     g.clear();
-    g.fillStyle(0x1e293b, 1);
-    g.fillRect(-18, -28, 36, 5);
-    g.fillStyle(0x22c55e, 1);
-    g.fillRect(-18, -28, 36 * Math.max(0, Math.min(1, ratio)), 5);
+    g.fillStyle(0x1a1a1a, 0.95);
+    g.fillRoundedRect(-20, -30, 40, 6, 2);
+    const color = clamped > 0.5 ? 0x22c55e : clamped > 0.25 ? 0xd4a84b : 0xef4444;
+    g.fillStyle(color, 1);
+    g.fillRoundedRect(-20, -30, 40 * clamped, 6, 2);
   }
 
   private clearUnits(): void {
@@ -269,17 +369,49 @@ export class BattleScene extends Phaser.Scene {
     this.units.clear();
   }
 
-  private drawBoards(): void {
+  private drawArena(): void {
     if (!this.grid) return;
+    const w = this.scale.width;
+    const h = this.scale.height;
+
+    // Atmosphere bands
+    this.add.rectangle(w / 2, h * 0.28, w, h * 0.42, 0x1a1018, 0.55);
+    this.add.rectangle(w / 2, h * 0.72, w, h * 0.42, 0x12180f, 0.55);
+
+    // Center clash line
+    const mid = this.add.rectangle(w / 2, h / 2, w * 0.72, 3, 0xd4a84b, 0.55);
+    mid.setDepth(0);
+    this.add
+      .text(w / 2, h / 2, "⚔", { fontSize: "12px" })
+      .setOrigin(0.5)
+      .setAlpha(0.7);
+
+    this.foeLabel = this.add
+      .text(w / 2, h * 0.12, "ENEMY", {
+        fontSize: "11px",
+        color: "#94a3b8",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+    this.youLabel = this.add
+      .text(w / 2, h * 0.88, "YOU", {
+        fontSize: "11px",
+        color: "#d4a84b",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5);
+
     const sides: PlayerSide[] = ["playerA", "playerB"];
     for (const side of sides) {
       for (let col = 0; col < 3; col++) {
         for (let row = 0; row < 2; row++) {
           const slot = coordinateToSlot(col as 0 | 1 | 2, row as 0 | 1);
           const { x, y } = this.grid.getSlotPosition(side, slot);
-          const size = this.grid.getCellSize() * 0.85;
-          const rect = this.add.rectangle(x, y, size, size, side === "playerA" ? 0x1e3a5f : 0x3f1d2e, 0.55);
-          rect.setStrokeStyle(1, 0x64748b, 0.8);
+          const size = this.grid.getCellSize() * 0.88;
+          const isLocal = side === this.localSide;
+          const fill = side === "playerA" ? 0x243528 : 0x3a2230;
+          const rect = this.add.rectangle(x, y, size, size, fill, 0.72);
+          rect.setStrokeStyle(1.5, isLocal ? 0xd4a84b : 0x64748b, 0.65);
         }
       }
     }
@@ -291,7 +423,6 @@ export class BattleScene extends Phaser.Scene {
         return definition.class;
       }
     }
-    // Prefer matching by loading class from side map callers — fallback tank.
     return "tank";
   }
 }

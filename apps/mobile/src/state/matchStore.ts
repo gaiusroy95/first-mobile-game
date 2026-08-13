@@ -6,7 +6,7 @@ import type {
   RosterHero,
 } from "@battle-formation/shared-types";
 import { getSocket } from "../api/socket/client";
-import { joinQueue, leaveQueue } from "../api/endpoints/matchmaking";
+import { joinQueue, leaveQueue, startPractice } from "../api/endpoints/matchmaking";
 
 type QueueStatus = "idle" | "queued" | "matched" | "error";
 
@@ -22,8 +22,10 @@ interface MatchState {
   formationDeadline: string | null;
   battleResult: BattleResultPayload | null;
   waitingForOpponent: boolean;
+  isPractice: boolean;
 
   findMatch: (mode?: "casual" | "ranked") => Promise<void>;
+  practiceMatch: () => Promise<void>;
   cancelQueue: (mode?: "casual" | "ranked") => Promise<void>;
   bindSocket: (playerId: string) => void;
   unbindSocket: () => void;
@@ -33,7 +35,7 @@ interface MatchState {
 
 let socketBound = false;
 
-export const useMatchStore = create<MatchState>((set, get) => ({
+export const useMatchStore = create<MatchState>((set) => ({
   queueStatus: "idle",
   queueError: null,
   matchId: null,
@@ -45,6 +47,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   formationDeadline: null,
   battleResult: null,
   waitingForOpponent: false,
+  isPractice: false,
 
   bindSocket: (playerId) => {
     const socket = getSocket();
@@ -92,7 +95,7 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   },
 
   findMatch: async (mode: "casual" | "ranked" = "casual") => {
-    set({ queueStatus: "queued", queueError: null, battleResult: null });
+    set({ queueStatus: "queued", queueError: null, battleResult: null, isPractice: false });
     try {
       const result = await joinQueue(mode);
       if (result.status === "matched") {
@@ -106,13 +109,29 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     }
   },
 
+  practiceMatch: async () => {
+    set({ queueStatus: "queued", queueError: null, battleResult: null, isPractice: true });
+    try {
+      const result = await startPractice();
+      if (result.status === "matched") {
+        set({ queueStatus: "matched", matchId: result.matchId, isPractice: true });
+      }
+    } catch (error) {
+      set({
+        queueStatus: "error",
+        queueError: error instanceof Error ? error.message : "Failed to start practice",
+        isPractice: false,
+      });
+    }
+  },
+
   cancelQueue: async (mode: "casual" | "ranked" = "casual") => {
     try {
       await leaveQueue(mode);
     } catch {
       /* ignore */
     }
-    set({ queueStatus: "idle", queueError: null });
+    set({ queueStatus: "idle", queueError: null, isPractice: false });
   },
 
   setWaitingForOpponent: (waiting) => set({ waitingForOpponent: waiting }),
@@ -129,5 +148,6 @@ export const useMatchStore = create<MatchState>((set, get) => ({
       formationDeadline: null,
       battleResult: null,
       waitingForOpponent: false,
+      isPractice: false,
     }),
 }));
