@@ -44,7 +44,8 @@ export class GameManager {
           message.payload.durationSeconds,
           (formation) => {
             this.send({ type: "FORMATION_CONFIRMED", payload: { formation } });
-          }
+          },
+          this.localSide
         );
         break;
       case "SET_FORMATION":
@@ -66,7 +67,7 @@ export class GameManager {
       heroes.map((rosterHero) => [rosterHero.instanceId, resolveHero(rosterHero.definition, rosterHero.level)])
     );
     this.sideByInstanceId = new Map(heroes.map((rosterHero) => [rosterHero.instanceId, rosterHero.side]));
-    this.localRoster = heroes.filter((rosterHero) => rosterHero.side === localSide);
+    this.localRoster = heroes.filter((rosterHero) => rosterHero.side === localSide).slice(0, 6);
     this.phaserGame.setHeroCatalog(heroes.map((rosterHero) => rosterHero.definition));
     this.phaserGame.setSideLookup(this.sideByInstanceId);
     this.phaserGame.setClassLookup(

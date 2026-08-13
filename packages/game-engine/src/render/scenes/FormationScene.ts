@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { Formation, RosterHero } from "@battle-formation/shared-types";
+import type { Formation, PlayerSide, RosterHero } from "@battle-formation/shared-types";
 import { allSlots, validateFormation } from "../../simulation/formation";
 import { GridManager } from "../systems/GridManager";
 import { PositionManager } from "../systems/PositionManager";
@@ -19,12 +19,20 @@ export class FormationScene extends Phaser.Scene {
   private position?: PositionManager;
   private placement?: HeroPlacement;
   private readonly timer = new PrepTimer();
+  private slotRects: Phaser.GameObjects.Rectangle[] = [];
 
   private timerText?: Phaser.GameObjects.Text;
   private statusText?: Phaser.GameObjects.Text;
 
   private onConfirmed?: (formation: Formation) => void;
   private confirmed = false;
+  private localSide: PlayerSide = "playerA";
+  private pendingPrep?: {
+    roster: RosterHero[];
+    durationSeconds: number;
+    onConfirmed: (formation: Formation) => void;
+    localSide: PlayerSide;
+  };
 
   constructor() {
     super("Formation");
@@ -99,17 +107,28 @@ export class FormationScene extends Phaser.Scene {
     btn.on("pointerout", () => btn.setFillStyle(0xc45c26));
     btn.on("pointerup", () => this.confirm());
     void btnLabel;
+
+    if (this.pendingPrep) {
+      const pending = this.pendingPrep;
+      this.pendingPrep = undefined;
+      this.startPreparation(pending.roster, pending.durationSeconds, pending.onConfirmed, pending.localSide);
+    }
   }
 
   private drawGridSlots(): void {
     if (!this.grid) return;
+    for (const rect of this.slotRects) {
+      rect.destroy();
+    }
+    this.slotRects = [];
     const size = this.grid.getCellSize() - 4;
     for (const side of ["playerA", "playerB"] as const) {
       for (const slot of allSlots()) {
         const { x, y } = this.grid.getSlotPosition(side, slot);
-        const fill = side === "playerA" ? 0x243528 : 0x3a2230;
-        const stroke = side === "playerA" ? 0xd4a84b : 0x64748b;
-        this.add.rectangle(x, y, size, size, fill, 0.75).setStrokeStyle(1.5, stroke, 0.7);
+        const isLocal = side === this.localSide;
+        const fill = isLocal ? 0x243528 : 0x3a2230;
+        const stroke = isLocal ? 0xd4a84b : 0x64748b;
+        this.slotRects.push(this.add.rectangle(x, y, size, size, fill, 0.75).setStrokeStyle(1.5, stroke, 0.7));
       }
     }
   }
@@ -118,17 +137,25 @@ export class FormationScene extends Phaser.Scene {
   startPreparation(
     roster: RosterHero[],
     durationSeconds: number,
-    onConfirmed: (formation: Formation) => void
+    onConfirmed: (formation: Formation) => void,
+    localSide: PlayerSide = "playerA"
   ): void {
-    if (!this.grid) return;
+    if (!this.grid) {
+      this.pendingPrep = { roster, durationSeconds, onConfirmed, localSide };
+      return;
+    }
+
+    this.localSide = localSide;
+    this.grid.setLocalSide(localSide);
+    this.drawGridSlots();
 
     this.confirmed = false;
     this.onConfirmed = onConfirmed;
-    this.position = new PositionManager("playerA");
-    this.placement = new HeroPlacement(this, this.grid, this.position, "playerA", () =>
+    this.position = new PositionManager(localSide);
+    this.placement = new HeroPlacement(this, this.grid, this.position, localSide, () =>
       this.refreshStatus()
     );
-    this.placement.loadRoster(roster, this.scale.height - 60);
+    this.placement.loadRoster(roster.slice(0, 6), this.scale.height - 96);
     this.refreshStatus();
 
     this.timer.start(

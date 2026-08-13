@@ -40,9 +40,10 @@ export class PhaserGame {
   startFormationPhase(
     roster: RosterHero[],
     durationSeconds: number,
-    onConfirmed: (formation: Formation) => void
+    onConfirmed: (formation: Formation) => void,
+    localSide: PlayerSide = "playerA"
   ): void {
-    this.formationScene?.startPreparation(roster, durationSeconds, onConfirmed);
+    this.formationScene?.startPreparation(roster, durationSeconds, onConfirmed, localSide);
   }
 
   setHeroCatalog(heroes: HeroDefinition[]): void {
@@ -64,11 +65,11 @@ export class PhaserGame {
   }
 
   playBattle(events: BattleEvent[], onComplete: () => void, localSide: PlayerSide = "playerA"): void {
-    this.game.scene.stop("Formation");
-    this.game.scene.start("Battle");
     this.battleScene?.setSideLookup(this.sideByInstanceId);
     this.battleScene?.setClassLookup(this.classByInstanceId);
     this.battleScene?.setLocalSide(localSide);
+    this.game.scene.stop("Formation");
+    this.game.scene.start("Battle");
     this.battleScene?.playEvents(events, onComplete);
   }
 }

@@ -17,10 +17,16 @@ export interface GridLayoutOptions {
 export class GridManager {
   private readonly cellSize: number;
   private readonly boardWidth: number;
+  /** The local player's side is always drawn on the bottom half of the screen. */
+  private localSide: PlayerSide = "playerA";
 
   constructor(private readonly options: GridLayoutOptions) {
     this.boardWidth = Math.min(options.viewportWidth * 0.9, 300);
     this.cellSize = this.boardWidth / GRID_COLS;
+  }
+
+  setLocalSide(side: PlayerSide): void {
+    this.localSide = side;
   }
 
   getCellSize(): number {
@@ -28,10 +34,9 @@ export class GridManager {
   }
 
   /**
-   * Pixel center of a slot for the given side. playerA's board sits in the
-   * lower half of the screen with its front row (4-6) nearest the
-   * centerline; playerB's board mirrors it in the upper half, so both
-   * front rows face each other in the middle.
+   * Pixel center of a slot for the given side. The local player's board
+   * always sits in the lower half (front row nearest the centerline); the
+   * opponent mirrors it above.
    */
   getSlotPosition(side: PlayerSide, slot: SlotNumber): { x: number; y: number } {
     const { col, row } = slotToCoordinate(slot);
@@ -41,7 +46,8 @@ export class GridManager {
     const rowDepth = row === 1 ? 0 : 1; // front row (4-6) is nearest the centerline
     const offsetFromMid = (rowDepth + 0.5) * this.cellSize;
     const midY = this.options.viewportHeight / 2;
-    const y = side === "playerA" ? midY + offsetFromMid : midY - offsetFromMid;
+    const isLocal = side === this.localSide;
+    const y = isLocal ? midY + offsetFromMid : midY - offsetFromMid;
 
     return { x, y };
   }

@@ -8,6 +8,7 @@ import { useBattleStore } from "../../state/battleStore";
 import { useMatchStore } from "../../state/matchStore";
 import { submitFormation } from "../../api/endpoints/battles";
 import { GameContainer, type GameContainerHandle } from "../../game/GameContainer";
+import { useFormationStore, SQUAD_SIZE } from "../../state/formationStore";
 import { ScreenContainer } from "../components/ScreenContainer";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Battle">;
@@ -23,13 +24,14 @@ export function BattleScreen({ navigation }: Props) {
   const isPractice = useMatchStore((state) => state.isPractice);
   const setWaitingForOpponent = useMatchStore((state) => state.setWaitingForOpponent);
   const setResult = useBattleStore((state) => state.setResult);
+  const selectedInstanceIds = useFormationStore((state) => state.selectedInstanceIds);
   const [phase, setPhase] = useState<"prep" | "waiting" | "fight">("prep");
   const [status, setStatus] = useState("Drag 6 heroes onto your grid. Front = tanks. Back = damage.");
   const startedRef = useRef(false);
   const playedResultRef = useRef(false);
 
   useEffect(() => {
-    if (!matchId || !localSide) {
+    if (!matchId && !localSide) {
       navigation.replace("Lobby");
     }
   }, [matchId, localSide, navigation]);
@@ -37,9 +39,16 @@ export function BattleScreen({ navigation }: Props) {
   useEffect(() => {
     if (!matchId || !localSide || roster.length === 0 || startedRef.current) return;
     startedRef.current = true;
-    gameRef.current?.loadHeroes(roster, localSide);
+    const localHeroes = roster.filter((hero) => hero.side === localSide);
+    const picked =
+      selectedInstanceIds.length === SQUAD_SIZE
+        ? localHeroes.filter((hero) => selectedInstanceIds.includes(hero.instanceId))
+        : localHeroes.slice(0, SQUAD_SIZE);
+    const squad = picked.length === SQUAD_SIZE ? picked : localHeroes.slice(0, SQUAD_SIZE);
+    const opponents = roster.filter((hero) => hero.side !== localSide);
+    gameRef.current?.loadHeroes([...squad, ...opponents], localSide);
     gameRef.current?.startFormationPhase(20);
-  }, [matchId, localSide, roster]);
+  }, [matchId, localSide, roster, selectedInstanceIds]);
 
   useEffect(() => {
     if (!battleResult || playedResultRef.current) return;

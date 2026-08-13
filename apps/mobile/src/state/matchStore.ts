@@ -34,6 +34,23 @@ interface MatchState {
 }
 
 let socketBound = false;
+let boundPlayerId: string | null = null;
+
+function applyFound(payload: MatchFoundPayload, playerId: string) {
+  const localSide: PlayerSide = payload.playerAId === playerId ? "playerA" : "playerB";
+  return {
+    queueStatus: "matched" as const,
+    matchId: payload.matchId,
+    opponentId: payload.opponentId,
+    playerAId: payload.playerAId,
+    playerBId: payload.playerBId,
+    localSide,
+    roster: payload.roster,
+    formationDeadline: payload.formationDeadline,
+    battleResult: null,
+    waitingForOpponent: false,
+  };
+}
 
 export const useMatchStore = create<MatchState>((set) => ({
   queueStatus: "idle",
@@ -50,6 +67,7 @@ export const useMatchStore = create<MatchState>((set) => ({
   isPractice: false,
 
   bindSocket: (playerId) => {
+    boundPlayerId = playerId;
     const socket = getSocket();
     if (!socketBound) {
       socket.connect();
@@ -61,19 +79,7 @@ export const useMatchStore = create<MatchState>((set) => ({
     socket.off("battle:result");
 
     socket.on("matchmaking:found", (payload: MatchFoundPayload) => {
-      const localSide: PlayerSide = payload.playerAId === playerId ? "playerA" : "playerB";
-      set({
-        queueStatus: "matched",
-        matchId: payload.matchId,
-        opponentId: payload.opponentId,
-        playerAId: payload.playerAId,
-        playerBId: payload.playerBId,
-        localSide,
-        roster: payload.roster,
-        formationDeadline: payload.formationDeadline,
-        battleResult: null,
-        waitingForOpponent: false,
-      });
+      set(applyFound(payload, playerId));
     });
 
     socket.on("battle:start", () => {
@@ -92,14 +98,15 @@ export const useMatchStore = create<MatchState>((set) => ({
     socket.off("battle:result");
     socket.disconnect();
     socketBound = false;
+    boundPlayerId = null;
   },
 
   findMatch: async (mode: "casual" | "ranked" = "casual") => {
     set({ queueStatus: "queued", queueError: null, battleResult: null, isPractice: false });
     try {
       const result = await joinQueue(mode);
-      if (result.status === "matched") {
-        set({ queueStatus: "matched", matchId: result.matchId });
+      if (result.status === "matched" && result.match && boundPlayerId) {
+        set({ ...applyFound(result.match, boundPlayerId), isPractice: false });
       }
     } catch (error) {
       set({
@@ -113,8 +120,8 @@ export const useMatchStore = create<MatchState>((set) => ({
     set({ queueStatus: "queued", queueError: null, battleResult: null, isPractice: true });
     try {
       const result = await startPractice();
-      if (result.status === "matched") {
-        set({ queueStatus: "matched", matchId: result.matchId, isPractice: true });
+      if (result.status === "matched" && result.match && boundPlayerId) {
+        set({ ...applyFound(result.match, boundPlayerId), isPractice: true });
       }
     } catch (error) {
       set({

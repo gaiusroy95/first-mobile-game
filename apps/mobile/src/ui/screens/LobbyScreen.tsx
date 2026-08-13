@@ -31,6 +31,8 @@ export function LobbyScreen({ navigation }: Props) {
   const queueStatus = useMatchStore((state) => state.queueStatus);
   const queueError = useMatchStore((state) => state.queueError);
   const matchId = useMatchStore((state) => state.matchId);
+  const localSide = useMatchStore((state) => state.localSide);
+  const roster = useMatchStore((state) => state.roster);
   const findMatch = useMatchStore((state) => state.findMatch);
   const practiceMatch = useMatchStore((state) => state.practiceMatch);
   const cancelQueue = useMatchStore((state) => state.cancelQueue);
@@ -49,10 +51,10 @@ export function LobbyScreen({ navigation }: Props) {
   }, [playerId, bindSocket, refreshProfile, fetchOwnedHeroes]);
 
   useEffect(() => {
-    if (queueStatus === "matched" && matchId) {
+    if (queueStatus === "matched" && matchId && localSide && roster.length > 0) {
       navigation.navigate("Battle");
     }
-  }, [queueStatus, matchId, navigation]);
+  }, [queueStatus, matchId, localSide, roster.length, navigation]);
 
   return (
     <ScreenContainer>

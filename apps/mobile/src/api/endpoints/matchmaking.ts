@@ -1,6 +1,9 @@
 import { apiFetch } from "../http/client";
+import type { MatchFoundPayload } from "@battle-formation/shared-types";
 
-export type QueueResult = { status: "queued" } | { status: "matched"; matchId: string };
+export type QueueResult =
+  | { status: "queued" }
+  | { status: "matched"; matchId: string; match: MatchFoundPayload };
 export type PvpMode = "casual" | "ranked";
 
 export function joinQueue(mode: PvpMode = "casual"): Promise<QueueResult> {

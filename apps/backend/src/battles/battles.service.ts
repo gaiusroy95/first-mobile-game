@@ -40,7 +40,12 @@ export class BattlesService {
       seed: Date.now().toString(),
       formationDeadline: new Date(Date.now() + FORMATION_DEADLINE_SECONDS * 1000),
     });
-    return this.matches.save(match);
+    return this.matches.save(match).then((saved) => {
+      setTimeout(() => {
+        void this.lockExpiredMatch(saved.id);
+      }, (FORMATION_DEADLINE_SECONDS + 2) * 1000);
+      return saved;
+    });
   }
 
   async submitFormation(matchId: string, playerId: string, formation: Formation): Promise<void> {
@@ -58,7 +63,7 @@ export class BattlesService {
       if (current.status !== "pending") {
         throw new ForbiddenException("Formation already locked in for this match");
       }
-      if (Date.now() > current.formationDeadline.getTime()) {
+      if (current.mode !== "practice" && Date.now() > current.formationDeadline.getTime()) {
         throw new BadRequestException("Formation submission deadline has passed");
       }
 
@@ -94,8 +99,40 @@ export class BattlesService {
     }
   }
 
+  /** If either side missed the 20s window, fill defaults and start the fight. */
+  private async lockExpiredMatch(matchId: string): Promise<void> {
+    const match = await this.dataSource.transaction(async (manager) => {
+      const current = await manager.findOne(MatchEntity, {
+        where: { id: matchId },
+        lock: { mode: "pessimistic_write" },
+      });
+      if (!current || current.status !== "pending") return null;
+      if (Date.now() < current.formationDeadline.getTime()) return null;
+
+      if (!current.formationA) {
+        current.formationA = await this.buildDefaultFormation(manager, current.playerAId);
+      }
+      if (!current.formationB) {
+        current.formationB = await this.buildDefaultFormation(manager, current.playerBId);
+      }
+      current.status = "ready";
+      return manager.save(current);
+    });
+
+    if (match?.status === "ready") {
+      const startPayload: BattleStartPayload = { matchId: match.id };
+      this.realtime.emitToPlayer(match.playerAId, "battle:start", startPayload);
+      this.realtime.emitToPlayer(match.playerBId, "battle:start", startPayload);
+      await this.resolve(match);
+    }
+  }
+
   private async buildDefaultFormation(manager: EntityManager, playerId: string): Promise<Formation> {
-    const owned = await manager.find(OwnedHeroEntity, { where: { playerId }, take: 6 });
+    const owned = await manager.find(OwnedHeroEntity, {
+      where: { playerId },
+      take: 6,
+      order: { createdAt: "ASC" },
+    });
     if (owned.length < 6) {
       throw new BadRequestException("Opponent roster incomplete");
     }

@@ -12,7 +12,9 @@ const RATING_WINDOW_RANKED = 80;
 /** Fixed system account used for 1-device Practice demos. */
 export const PRACTICE_BOT_USERNAME = "__practice_bot__";
 
-export type QueueResult = { status: "queued" } | { status: "matched"; matchId: string };
+export type QueueResult =
+  | { status: "queued" }
+  | { status: "matched"; matchId: string; match: MatchFoundPayload };
 export type PvpMode = "casual" | "ranked";
 
 @Injectable()
@@ -49,7 +51,7 @@ export class MatchmakingService implements OnModuleInit {
     this.botPlayerId = botId;
 
     const match = await this.battles.createMatch(playerId, botId, "practice");
-    await this.emitMatchFound(
+    const payload = await this.emitMatchFound(
       match.id,
       playerId,
       botId,
@@ -58,7 +60,7 @@ export class MatchmakingService implements OnModuleInit {
       match.formationDeadline,
       { notifyOpponent: false }
     );
-    return { status: "matched", matchId: match.id };
+    return { status: "matched", matchId: match.id, match: payload };
   }
 
   async joinQueue(playerId: string, mode: PvpMode = "casual"): Promise<QueueResult> {
@@ -89,7 +91,7 @@ export class MatchmakingService implements OnModuleInit {
     }
 
     const match = await this.battles.createMatch(playerId, opponentId, mode);
-    await this.emitMatchFound(
+    const payload = await this.emitMatchFound(
       match.id,
       playerId,
       opponentId,
@@ -98,7 +100,7 @@ export class MatchmakingService implements OnModuleInit {
       match.formationDeadline
     );
 
-    return { status: "matched", matchId: match.id };
+    return { status: "matched", matchId: match.id, match: payload };
   }
 
   async leaveQueue(playerId: string, mode: PvpMode = "casual"): Promise<void> {
@@ -119,7 +121,7 @@ export class MatchmakingService implements OnModuleInit {
     playerBId: string,
     formationDeadline: Date,
     options: { notifyOpponent?: boolean } = {}
-  ): Promise<void> {
+  ): Promise<MatchFoundPayload> {
     const notifyOpponent = options.notifyOpponent !== false;
     const [rosterA, rosterB] = await Promise.all([
       this.heroes.buildRoster(playerAId, "playerA"),
@@ -149,5 +151,6 @@ export class MatchmakingService implements OnModuleInit {
       };
       this.realtime.emitToPlayer(opponentId, "matchmaking:found", toOpponent);
     }
+    return toPlayer;
   }
 }

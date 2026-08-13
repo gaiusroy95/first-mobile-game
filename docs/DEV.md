@@ -53,8 +53,10 @@ npm run web
 
 1. Register one account.
 2. Lobby → **Practice vs Bot**.
-3. Place 6 heroes on the bottom grid and Confirm — the bot locks automatically.
+3. Place 6 heroes on the **bottom** grid and Confirm — the bot locks automatically.
 4. Watch HP bars, damage numbers, and SFX, then claim rewards.
+
+If the 20s timer expires, both sides auto-fill and the battle still starts.
 
 ## Rebuild Phaser bundle after engine changes
 

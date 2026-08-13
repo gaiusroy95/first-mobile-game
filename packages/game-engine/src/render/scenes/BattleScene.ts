@@ -67,6 +67,7 @@ export class BattleScene extends Phaser.Scene {
       viewportWidth: this.scale.width,
       viewportHeight: this.scale.height,
     });
+    this.grid.setLocalSide(this.localSide);
     this.drawArena();
 
     this.statusText = this.add
@@ -101,8 +102,9 @@ export class BattleScene extends Phaser.Scene {
 
   setLocalSide(side: PlayerSide): void {
     this.localSide = side;
-    this.youLabel?.setText(side === "playerA" ? "YOU" : "ENEMY");
-    this.foeLabel?.setText(side === "playerA" ? "ENEMY" : "YOU");
+    this.grid?.setLocalSide(side);
+    this.youLabel?.setText("YOU");
+    this.foeLabel?.setText("ENEMY");
   }
 
   setFormation(formations: [Formation, Formation]): void {
@@ -409,7 +411,7 @@ export class BattleScene extends Phaser.Scene {
           const { x, y } = this.grid.getSlotPosition(side, slot);
           const size = this.grid.getCellSize() * 0.88;
           const isLocal = side === this.localSide;
-          const fill = side === "playerA" ? 0x243528 : 0x3a2230;
+          const fill = isLocal ? 0x243528 : 0x3a2230;
           const rect = this.add.rectangle(x, y, size, size, fill, 0.72);
           rect.setStrokeStyle(1.5, isLocal ? 0xd4a84b : 0x64748b, 0.65);
         }
