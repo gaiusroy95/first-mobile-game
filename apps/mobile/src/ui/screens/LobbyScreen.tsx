@@ -100,9 +100,11 @@ export function LobbyScreen({ navigation }: Props) {
                 <Text className="text-center text-sm text-accent">
                   {isPractice ? "Starting practice…" : "Searching for an opponent…"}
                 </Text>
-                {!isPractice ? (
-                  <PrimaryButton label="Cancel search" variant="secondary" onPress={() => void cancelQueue()} />
-                ) : null}
+                <PrimaryButton
+                  label={isPractice ? "Cancel" : "Cancel search"}
+                  variant="secondary"
+                  onPress={() => void cancelQueue()}
+                />
               </>
             ) : (
               <>

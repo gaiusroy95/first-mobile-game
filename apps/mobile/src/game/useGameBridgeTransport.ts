@@ -9,14 +9,18 @@ interface UseGameBridgeTransportArgs extends GameContainerProps {
 
 /**
  * The bridge protocol itself (queue-until-ready, decode, dispatch) shared
- * between the native (WebView) and web (iframe) hosts - GameContainer.tsx
- * and GameContainer.web.tsx each only implement "how do I actually post
- * and receive a raw string" and hand both directions through here, so the
- * two hosts can never drift on what a given bridge message means.
+ * between the native (WebView) and web (iframe) hosts.
  */
-export function useGameBridgeTransport({ postRaw, onFormationConfirmed, onBattleFinished, onError }: UseGameBridgeTransportArgs) {
+export function useGameBridgeTransport({
+  postRaw,
+  onFormationConfirmed,
+  onBattleFinished,
+  onError,
+}: UseGameBridgeTransportArgs) {
   const gameReady = useRef(false);
   const pendingMessages = useRef<BridgeInboundMessage[]>([]);
+  const callbacksRef = useRef({ onFormationConfirmed, onBattleFinished, onError });
+  callbacksRef.current = { onFormationConfirmed, onBattleFinished, onError };
 
   const send = (message: BridgeInboundMessage) => {
     if (gameReady.current) {
@@ -46,13 +50,13 @@ export function useGameBridgeTransport({ postRaw, onFormationConfirmed, onBattle
         }
         break;
       case "FORMATION_CONFIRMED":
-        onFormationConfirmed(message.payload.formation);
+        callbacksRef.current.onFormationConfirmed(message.payload.formation);
         break;
       case "BATTLE_FINISHED":
-        onBattleFinished(message.payload.winner, message.payload.rewards);
+        callbacksRef.current.onBattleFinished(message.payload.winner, message.payload.rewards);
         break;
       case "RENDER_ERROR":
-        onError?.(message.payload.message);
+        callbacksRef.current.onError?.(message.payload.message);
         break;
     }
   };

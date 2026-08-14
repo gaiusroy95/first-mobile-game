@@ -27,6 +27,7 @@
     "@nestjs/websockets": "^10.4.15",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.5",
@@ -43,9 +44,10 @@
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
-    "@swc/cli": "^0.5.0",
-    "@swc/core": "^1.9.3",
+    "@swc/cli": "^0.5.2",
+    "@swc/core": "^1.15.47",
     "@types/bcrypt": "^5.0.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.9.0",
     "@types/passport-jwt": "^4.0.1",
     "typescript": "^5.6.3"

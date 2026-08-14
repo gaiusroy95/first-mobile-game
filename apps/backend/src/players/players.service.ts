@@ -75,7 +75,7 @@ export class PlayersService {
   async ensurePracticeBot(username: string, displayName: string): Promise<Player> {
     let bot = await this.players.findOne({ where: { username } });
     if (!bot) {
-      const bcrypt = await import("bcrypt");
+      const bcrypt = await import("bcryptjs");
       const passwordHash = await bcrypt.hash(`bot-${Date.now()}`, 10);
       bot = await this.players.save(
         this.players.create({

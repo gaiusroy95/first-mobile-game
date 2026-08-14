@@ -127,11 +127,24 @@ export const useMatchStore = create<MatchState>((set, get) => ({
     if (get().queueStatus === "queued") return;
     set({ queueStatus: "queued", queueError: null, battleResult: null, isPractice: true });
     try {
-      await connectSocket();
-      if (boundPlayerId) attachListeners(boundPlayerId, set);
+      // Practice can finish over HTTP alone; socket is optional best-effort.
+      void connectSocket()
+        .then(() => {
+          if (boundPlayerId) attachListeners(boundPlayerId, set);
+        })
+        .catch(() => undefined);
+
       const result = await startPractice();
-      if (result.status === "matched" && result.match && boundPlayerId) {
-        set({ ...applyFound(result.match, boundPlayerId), isPractice: true });
+      if (result.status === "matched" && result.match) {
+        // Practice always creates the human as playerA.
+        const playerId = boundPlayerId ?? result.match.playerAId;
+        set({ ...applyFound(result.match, playerId), isPractice: true });
+      } else {
+        set({
+          queueStatus: "error",
+          queueError: "Practice match did not start. Try again.",
+          isPractice: false,
+        });
       }
     } catch (error) {
       set({
@@ -143,6 +156,10 @@ export const useMatchStore = create<MatchState>((set, get) => ({
   },
 
   cancelQueue: async (mode: "casual" | "ranked" = "casual") => {
+    if (get().isPractice) {
+      set({ queueStatus: "idle", queueError: null, isPractice: false });
+      return;
+    }
     try {
       await leaveQueue(mode);
     } catch {

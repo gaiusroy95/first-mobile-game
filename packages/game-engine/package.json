@@ -15,7 +15,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:node": "tsc -p tsconfig.build.json && echo '{\"type\":\"commonjs\"}' > dist-node/package.json",
+    "build:node": "tsc -p tsconfig.build.json && node -e \"require('fs').writeFileSync('dist-node/package.json', JSON.stringify({type:'commonjs'}))\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

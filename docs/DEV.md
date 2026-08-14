@@ -28,6 +28,9 @@ EXPO_PUBLIC_SOCKET_URL=http://localhost:3000
 
 On a physical device, use your machine LAN IP instead of `localhost`.
 
+For local Practice without Docker Redis, set `REDIS_URL=memory` in `apps/backend/.env`
+(single-process in-memory queue/leaderboard — fine for one-device demos).
+
 ## Boot
 
 ```bash

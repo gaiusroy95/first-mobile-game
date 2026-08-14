@@ -12,7 +12,11 @@ interface ScreenContainerProps {
 export function ScreenContainer({ children, padded = true }: ScreenContainerProps) {
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {padded ? <View className="flex-1 px-5 pt-5">{children}</View> : children}
+      {padded ? (
+        <View className="flex-1 px-5 pt-5">{children}</View>
+      ) : (
+        <View className="flex-1">{children}</View>
+      )}
     </SafeAreaView>
   );
 }

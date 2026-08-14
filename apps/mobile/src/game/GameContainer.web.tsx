@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { View } from "react-native";
 import { GAME_HTML } from "./gameBundle.generated";
 import { useGameBridgeTransport } from "./useGameBridgeTransport";
 import type { GameContainerHandle, GameContainerProps } from "./GameContainer.types";
@@ -8,12 +9,12 @@ export type { GameContainerHandle } from "./GameContainer.types";
 /**
  * Web host: a browser doesn't need react-native-webview to embed content -
  * it already has an iframe. Same bridge protocol, same GAME_HTML, same
- * GameContainerHandle as the native file; only "how do I actually post
- * and receive a raw string" differs.
+ * GameContainerHandle as the native file.
  */
 export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>(
   ({ onFormationConfirmed, onBattleFinished, onError }, ref) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
+    const handleRawMessageRef = useRef<(raw: string) => void>(() => undefined);
     const [srcDoc, setSrcDoc] = useState<string | undefined>(undefined);
 
     const { send, handleRawMessage } = useGameBridgeTransport({
@@ -22,6 +23,7 @@ export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>
       onBattleFinished,
       onError,
     });
+    handleRawMessageRef.current = handleRawMessage;
 
     useImperativeHandle(ref, () => ({
       loadHeroes: (heroes, localSide) =>
@@ -38,21 +40,29 @@ export const GameContainer = forwardRef<GameContainerHandle, GameContainerProps>
       const listener = (event: MessageEvent) => {
         if (event.source !== iframeRef.current?.contentWindow) return;
         if (typeof event.data !== "string") return;
-        handleRawMessage(event.data);
+        handleRawMessageRef.current(event.data);
       };
       window.addEventListener("message", listener);
       setSrcDoc(GAME_HTML);
       return () => window.removeEventListener("message", listener);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
-      <iframe
-        ref={iframeRef}
-        srcDoc={srcDoc}
-        title="Battle Formation"
-        style={{ flex: 1, border: "none", backgroundColor: "#0b1210", width: "100%", height: "100%" }}
-      />
+      <View style={{ flex: 1, width: "100%", minHeight: 0 }}>
+        <iframe
+          ref={iframeRef}
+          srcDoc={srcDoc}
+          title="Battle Formation"
+          style={{
+            flex: 1,
+            border: "none",
+            backgroundColor: "#0b1210",
+            width: "100%",
+            height: "100%",
+            display: "block",
+          }}
+        />
+      </View>
     );
   }
 );

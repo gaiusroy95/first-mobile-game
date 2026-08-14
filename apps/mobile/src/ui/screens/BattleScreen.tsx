@@ -104,12 +104,14 @@ export function BattleScreen({ navigation }: Props) {
           <Text className="mt-1 text-xs text-muted">You can still watch your locked board.</Text>
         ) : null}
       </View>
-      <GameContainer
-        ref={gameRef}
-        onFormationConfirmed={(formation) => void handleFormationConfirmed(formation)}
-        onBattleFinished={handleBattleFinished}
-        onError={(message) => console.error("[game]", message)}
-      />
+      <View style={{ flex: 1, minHeight: 0 }}>
+        <GameContainer
+          ref={gameRef}
+          onFormationConfirmed={(formation) => void handleFormationConfirmed(formation)}
+          onBattleFinished={handleBattleFinished}
+          onError={(message) => console.error("[game]", message)}
+        />
+      </View>
     </ScreenContainer>
   );
 }
