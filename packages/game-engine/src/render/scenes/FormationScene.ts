@@ -27,6 +27,7 @@ export class FormationScene extends Phaser.Scene {
   private onConfirmed?: (formation: Formation) => void;
   private confirmed = false;
   private localSide: PlayerSide = "playerA";
+  private localRoster: RosterHero[] = [];
   private pendingPrep?: {
     roster: RosterHero[];
     durationSeconds: number;
@@ -146,6 +147,7 @@ export class FormationScene extends Phaser.Scene {
     }
 
     this.localSide = localSide;
+    this.localRoster = roster;
     this.grid.setLocalSide(localSide);
     this.drawGridSlots();
 
@@ -173,14 +175,17 @@ export class FormationScene extends Phaser.Scene {
   private refreshStatus(): void {
     if (!this.position || this.confirmed) return;
     const placed = allSlots().filter((slot) => this.position!.getOccupant(slot) !== undefined).length;
-    this.statusText?.setText(`${placed} / 6 on your grid — tanks front, damage back`);
+    this.statusText?.setText(`${placed} / 6 — Commander + 5 soldiers. Tanks front.`);
   }
 
   private confirm(): void {
     if (this.confirmed || !this.position || !this.onConfirmed) return;
 
     const formation = this.position.toFormation();
-    const result = validateFormation(formation);
+    const definitionByInstanceId = new Map(
+      this.localRoster.map((hero) => [hero.instanceId, hero.definition] as const)
+    );
+    const result = validateFormation(formation, definitionByInstanceId);
     if (!result.valid) {
       this.statusText?.setText(result.errors[0] ?? "Place all 6 heroes first");
       return;

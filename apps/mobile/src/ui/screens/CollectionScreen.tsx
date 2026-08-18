@@ -6,7 +6,7 @@ import { useHeroStore } from "../../state/heroStore";
 import { usePlayerStore } from "../../state/playerStore";
 import { getHeroDefinition } from "../../state/heroCatalog";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { HeroCard } from "../components/HeroCard";
+import { HeroCard, HeroGridItem } from "../components/HeroCard";
 import { PrimaryButton } from "../components/PrimaryButton";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Collection">;
@@ -20,10 +20,11 @@ export function CollectionScreen({ navigation }: Props) {
   const heroCards = usePlayerStore((state) => state.heroCards);
   const refreshProfile = usePlayerStore((state) => state.refreshProfile);
   const ownedIds = new Set(ownedHeroes.map((h) => h.heroId));
-  const locked = heroDatabase.filter((definition) => !ownedIds.has(definition.id));
+  const locked = heroDatabase.filter((definition) => !ownedIds.has(definition.id) && !definition.locked);
+  const comingSoon = heroDatabase.filter((definition) => definition.locked);
 
   return (
-    <ScreenContainer>
+    <ScreenContainer onBack={() => navigation.goBack()} backLabel="Return to lobby">
       <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Roster</Text>
       <Text className="mb-1 mt-1 text-2xl font-bold text-ink">Hero collection</Text>
       <Text className="mb-4 text-sm text-muted">
@@ -33,10 +34,17 @@ export function CollectionScreen({ navigation }: Props) {
         data={ownedHeroes}
         keyExtractor={(hero) => hero.instanceId}
         numColumns={3}
+        columnWrapperStyle={{ alignItems: "flex-start" }}
         ListEmptyComponent={<Text className="text-muted">No heroes yet.</Text>}
         ListFooterComponent={
           <View className="mt-6 gap-3">
-            <Text className="text-lg font-semibold text-ink">Locked / Unlockable</Text>
+            <Text className="text-lg font-semibold text-ink">Coming soon</Text>
+            {comingSoon.map((definition) => (
+              <Text key={definition.id} className="text-xs text-muted">
+                {definition.name} · {definition.faction}
+              </Text>
+            ))}
+            <Text className="mt-4 text-lg font-semibold text-ink">Locked / Unlockable</Text>
             {locked.length === 0 ? (
               <Text className="text-muted">All heroes unlocked.</Text>
             ) : (
@@ -70,11 +78,13 @@ export function CollectionScreen({ navigation }: Props) {
           </View>
         }
         renderItem={({ item }) => (
-          <HeroCard
-            definition={getHeroDefinition(item.heroId)}
-            level={item.level}
-            onPress={() => navigation.navigate("Upgrade", { instanceId: item.instanceId })}
-          />
+          <HeroGridItem>
+            <HeroCard
+              definition={getHeroDefinition(item.heroId)}
+              level={item.level}
+              onPress={() => navigation.navigate("Upgrade", { instanceId: item.instanceId })}
+            />
+          </HeroGridItem>
         )}
       />
     </ScreenContainer>

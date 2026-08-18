@@ -7,7 +7,7 @@ import { useHeroStore } from "../../state/heroStore";
 import { usePlayerStore } from "../../state/playerStore";
 import { getHeroDefinition } from "../../state/heroCatalog";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { HeroCard } from "../components/HeroCard";
+import { HeroCard, HeroGridItem } from "../components/HeroCard";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CurrencyBadge } from "../components/CurrencyBadge";
 
@@ -23,7 +23,7 @@ function upgradeMaterialCost(level: number): number {
   return Math.max(1, Math.ceil(level / 2));
 }
 
-export function UpgradeScreen({ route }: Props) {
+export function UpgradeScreen({ navigation, route }: Props) {
   const ownedHeroes = useHeroStore((state) => state.ownedHeroes);
   const upgradeHero = useHeroStore((state) => state.upgradeHero);
   const equipCosmetic = useHeroStore((state) => state.equipCosmetic);
@@ -41,19 +41,23 @@ export function UpgradeScreen({ route }: Props) {
 
   if (!selected) {
     return (
-      <ScreenContainer>
-        <Text className="mb-4 text-2xl font-bold text-ink">Upgrade heroes</Text>
+      <ScreenContainer onBack={() => navigation.goBack()} backLabel="Return to lobby">
+        <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Grow stronger</Text>
+        <Text className="mb-4 mt-1 text-2xl font-bold text-ink">Upgrade heroes</Text>
         <FlatList
           data={ownedHeroes}
           keyExtractor={(hero) => hero.instanceId}
           numColumns={3}
+          columnWrapperStyle={{ alignItems: "flex-start" }}
           ListEmptyComponent={<Text className="text-muted">No heroes yet.</Text>}
           renderItem={({ item }) => (
-            <HeroCard
-              definition={getHeroDefinition(item.heroId)}
-              level={item.level}
-              onPress={() => setSelectedInstanceId(item.instanceId)}
-            />
+            <HeroGridItem>
+              <HeroCard
+                definition={getHeroDefinition(item.heroId)}
+                level={item.level}
+                onPress={() => setSelectedInstanceId(item.instanceId)}
+              />
+            </HeroGridItem>
           )}
         />
       </ScreenContainer>
@@ -78,7 +82,10 @@ export function UpgradeScreen({ route }: Props) {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer
+      onBack={() => setSelectedInstanceId(undefined)}
+      backLabel="Choose another hero"
+    >
       <View className="mb-4 flex-row items-center justify-between">
         <View>
           <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Grow stronger</Text>
@@ -93,7 +100,7 @@ export function UpgradeScreen({ route }: Props) {
       </View>
 
       <View className="items-center gap-3">
-        <HeroCard definition={definition} level={selected.level} />
+        <HeroCard definition={definition} level={selected.level} featured />
 
         <View className="w-full rounded-lg bg-surface p-4">
           <StatComparisonRow label="HP" before={current.hp} after={next.hp} />

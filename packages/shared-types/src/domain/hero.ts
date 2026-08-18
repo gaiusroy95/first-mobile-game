@@ -1,4 +1,5 @@
 import type { PlayerSide } from "./battle";
+import type { ArmyRole, FactionId } from "./faction";
 
 export type HeroClass =
   | "commander"
@@ -67,8 +68,13 @@ export interface HeroDefinition {
   name: string;
   class: HeroClass;
   rarity: HeroRarity;
+  faction: FactionId;
+  /** Commander = unique leader. Unit = regular army soldier. */
+  role: ArmyRole;
   baseStats: HeroBaseStats;
   abilities: Ability[];
+  /** Not granted or selectable until art/rules land. */
+  locked?: boolean;
 }
 
 /** Resolved, level-scaled hero ready for battle - what HeroManager.createHero produces. */
@@ -76,6 +82,8 @@ export interface Hero {
   id: string;
   name: string;
   class: HeroClass;
+  faction: FactionId;
+  role: ArmyRole;
   hp: number;
   attack: number;
   defense: number;

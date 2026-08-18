@@ -57,7 +57,7 @@ export class RewardsService {
     const gold = isPractice ? Math.floor(base.gold / 2) : base.gold;
     const experience = isPractice ? Math.floor(base.experience / 2) : base.experience;
     const trophyDelta = isPractice ? 0 : won ? TROPHY_WIN : TROPHY_LOSS;
-    const heroCards = [{ heroId: "commander-01", count: won ? (isPractice ? 1 : 2) : 1 }];
+    const heroCards = [{ heroId: "unit-arab-vanguard", count: won ? (isPractice ? 1 : 2) : 1 }];
     const materials = [
       { materialId: "essence_common", count: won ? (isPractice ? 1 : 3) : 1 },
       { materialId: "essence_rare", count: won && !isPractice ? 1 : 0 },

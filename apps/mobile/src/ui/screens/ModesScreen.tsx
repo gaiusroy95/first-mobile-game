@@ -3,7 +3,9 @@ import { ScrollView, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/types";
 import { useMatchStore } from "../../state/matchStore";
-import { useFormationStore, SQUAD_SIZE } from "../../state/formationStore";
+import { pickDefaultSquad, SQUAD_SIZE, squadInstanceIds } from "@battle-formation/game-engine";
+import { getHeroDefinition } from "../../state/heroCatalog";
+import { useFormationStore } from "../../state/formationStore";
 import { useHeroStore } from "../../state/heroStore";
 import { useAuthStore } from "../../state/authStore";
 import {
@@ -52,8 +54,20 @@ export function ModesScreen({ navigation }: Props) {
   }, [queueStatus, navigation]);
 
   const buildFormationFromSquad = () => {
-    const squad = ownedHeroes.filter((h) => selectedInstanceIds.includes(h.instanceId)).slice(0, SQUAD_SIZE);
-    const source = squad.length === SQUAD_SIZE ? squad : ownedHeroes.slice(0, SQUAD_SIZE);
+    const saved = ownedHeroes.filter((h) => selectedInstanceIds.includes(h.instanceId));
+    const pick = pickDefaultSquad(
+      ownedHeroes.map((h) => ({ instanceId: h.instanceId, heroId: h.heroId })),
+      getHeroDefinition
+    );
+    const ids =
+      saved.length === SQUAD_SIZE
+        ? saved.map((h) => h.instanceId)
+        : pick
+          ? squadInstanceIds(pick)
+          : ownedHeroes.slice(0, SQUAD_SIZE).map((h) => h.instanceId);
+    const source = ids
+      .map((id) => ownedHeroes.find((h) => h.instanceId === id))
+      .filter((h): h is NonNullable<typeof h> => h != null);
     return {
       playerId: playerId ?? "local",
       slots: source.map((hero, index) => ({
@@ -65,7 +79,7 @@ export function ModesScreen({ navigation }: Props) {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer onBack={() => navigation.goBack()} backLabel="Return to lobby">
       <ScrollView className="flex-1" contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
         <View>
           <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Play</Text>
@@ -154,8 +168,6 @@ export function ModesScreen({ navigation }: Props) {
             ))
           )}
         </Panel>
-
-        <PrimaryButton label="Back to lobby" variant="ghost" onPress={() => navigation.goBack()} />
       </ScrollView>
     </ScreenContainer>
   );

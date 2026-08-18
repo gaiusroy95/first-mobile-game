@@ -1,5 +1,5 @@
 import type { HeroDefinition } from "@battle-formation/shared-types";
-import { heroDatabase } from "./database";
+import { heroDatabase, LEGACY_HERO_ALIASES } from "./database";
 
 export class HeroValidationError extends Error {}
 
@@ -21,7 +21,8 @@ export class HeroLoader {
   }
 
   get(id: string): HeroDefinition | undefined {
-    return this.heroes.get(id);
+    const resolved = LEGACY_HERO_ALIASES[id] ?? id;
+    return this.heroes.get(resolved) ?? this.heroes.get(id);
   }
 
   getAll(): HeroDefinition[] {

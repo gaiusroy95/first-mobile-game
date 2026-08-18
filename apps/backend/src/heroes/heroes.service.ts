@@ -1,16 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { HeroManager, heroDatabase } from "@battle-formation/game-engine";
+import { HeroManager, BOT_STARTER_IDS, PLAYER_STARTER_IDS } from "@battle-formation/game-engine";
 import type { OwnedHero, PlayerSide, RosterHero } from "@battle-formation/shared-types";
 import { PlayersService } from "../players/players.service";
 import { OwnedHeroEntity } from "./owned-hero.entity";
 import { toOwnedHeroDto } from "./owned-hero.dto";
 
 const heroManager = new HeroManager();
-
-/** Starter grant excludes Commander — unlocked via hero cards after matches. */
-const STARTER_HERO_IDS = heroDatabase.filter((h) => h.id !== "commander-01").map((h) => h.id);
 
 const CARDS_TO_UNLOCK = 10;
 const MATERIAL_FOR_UPGRADE = "essence_common";
@@ -52,27 +49,31 @@ export class HeroesService {
     return toOwnedHeroDto(await this.heroes.save(owned));
   }
 
-  async grantStarterRoster(playerId: string): Promise<OwnedHero[]> {
-    const existing = await this.heroes.count({ where: { playerId } });
-    if (existing > 0) {
-      return this.listOwned(playerId);
+  async grantStarterRoster(playerId: string, pack: "player" | "bot" = "player"): Promise<OwnedHero[]> {
+    const starterIds = [...(pack === "bot" ? BOT_STARTER_IDS : PLAYER_STARTER_IDS)];
+    const existing = await this.heroes.find({ where: { playerId } });
+    const ownedIds = new Set(existing.map((row) => row.heroId));
+    const missing = starterIds.filter((heroId) => !ownedIds.has(heroId));
+    if (missing.length > 0) {
+      const rows = missing.map((heroId) =>
+        this.heroes.create({
+          playerId,
+          heroId,
+          level: 1,
+          upgrades: [],
+          cosmeticId: null,
+        })
+      );
+      await this.heroes.save(rows);
     }
-
-    const rows = STARTER_HERO_IDS.map((heroId) =>
-      this.heroes.create({
-        playerId,
-        heroId,
-        level: 1,
-        upgrades: [],
-        cosmeticId: null,
-      })
-    );
-    const saved = await this.heroes.save(rows);
-    return saved.map(toOwnedHeroDto);
+    return this.listOwned(playerId);
   }
 
   async unlockHero(playerId: string, heroId: string): Promise<OwnedHero> {
-    heroManager.getDefinition(heroId);
+    const definition = heroManager.getDefinition(heroId);
+    if (definition.locked) {
+      throw new BadRequestException("This fighter is not available yet");
+    }
     const already = await this.heroes.findOne({ where: { playerId, heroId } });
     if (already) {
       throw new BadRequestException("Hero already owned");

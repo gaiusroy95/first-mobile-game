@@ -5,8 +5,10 @@ import {
   BattleManager,
   HeroManager,
   allSlots,
+  pickDefaultSquad,
   resolveHero,
   slotToCoordinate,
+  squadInstanceIds,
   validateFormation,
 } from "@battle-formation/game-engine";
 import type { BattleResultPayload, BattleStartPayload, Formation, Hero } from "@battle-formation/shared-types";
@@ -81,7 +83,8 @@ export class BattlesService {
 
       await this.assertOwnsFormation(manager, playerId, formation);
 
-      const validation = validateFormation(formation);
+      const definitionByInstanceId = await this.definitionsFor(manager, formation);
+      const validation = validateFormation(formation, definitionByInstanceId);
       if (!validation.valid) {
         throw new BadRequestException(validation.errors);
       }
@@ -148,19 +151,38 @@ export class BattlesService {
   private async buildDefaultFormation(manager: EntityManager, playerId: string): Promise<Formation> {
     const owned = await manager.find(OwnedHeroEntity, {
       where: { playerId },
-      take: 6,
       order: { createdAt: "ASC" },
     });
-    if (owned.length < 6) {
+    const pick = pickDefaultSquad(
+      owned.map((row) => ({ instanceId: row.id, heroId: row.heroId })),
+      (heroId) => heroManager.getDefinition(heroId)
+    );
+    const ids = pick
+      ? squadInstanceIds(pick)
+      : owned.slice(0, 6).map((row) => row.id);
+    if (ids.length < 6) {
       throw new BadRequestException("Opponent roster incomplete");
     }
     return {
       playerId,
       slots: allSlots().map((slot, index) => {
         const { col, row } = slotToCoordinate(slot);
-        return { instanceId: owned[index]!.id, col, row };
+        return { instanceId: ids[index]!, col, row };
       }),
     };
+  }
+
+  private async definitionsFor(
+    manager: EntityManager,
+    formation: Formation
+  ): Promise<Map<string, import("@battle-formation/shared-types").HeroDefinition>> {
+    const instanceIds = formation.slots.map((slot) => slot.instanceId);
+    const owned = await manager.find(OwnedHeroEntity, { where: { id: In(instanceIds) } });
+    const map = new Map<string, import("@battle-formation/shared-types").HeroDefinition>();
+    for (const row of owned) {
+      map.set(row.id, heroManager.getDefinition(row.heroId));
+    }
+    return map;
   }
 
   private async assertOwnsFormation(manager: EntityManager, playerId: string, formation: Formation): Promise<void> {

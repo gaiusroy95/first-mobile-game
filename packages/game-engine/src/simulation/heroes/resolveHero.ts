@@ -18,6 +18,8 @@ export function resolveHero(definition: HeroDefinition, level: number): Hero {
     id: definition.id,
     name: definition.name,
     class: definition.class,
+    faction: definition.faction,
+    role: definition.role,
     rarity: definition.rarity,
     level,
     hp: Math.round(definition.baseStats.hp * multiplier),

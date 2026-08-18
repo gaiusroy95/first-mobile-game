@@ -63,9 +63,6 @@ export class AdventureService {
       throw new BadRequestException("Stage locked — clear earlier stages first");
     }
 
-    const validation = validateFormation(formation);
-    if (!validation.valid) throw new BadRequestException(validation.errors);
-
     const owned = await this.heroes.find({ where: { playerId } });
     const ownedIds = new Set(owned.map((h) => h.id));
     for (const slot of formation.slots) {
@@ -73,6 +70,12 @@ export class AdventureService {
         throw new BadRequestException("Formation references heroes you don't own");
       }
     }
+
+    const definitionByInstanceId = new Map(
+      owned.map((hero) => [hero.id, heroManager.getDefinition(hero.heroId)] as const)
+    );
+    const validation = validateFormation(formation, definitionByInstanceId);
+    if (!validation.valid) throw new BadRequestException(validation.errors);
 
     const heroesByInstanceId = new Map<string, Hero>();
     for (const hero of owned) {
@@ -102,7 +105,19 @@ function buildAiEncounter(level: number): {
   formation: Formation;
   heroes: Map<string, Hero>;
 } {
-  const defs = heroDatabase.slice(0, 6);
+  const ids = [
+    "cmd-viking",
+    "unit-viking-shield",
+    "unit-viking-berserker",
+    "unit-mongol-raider",
+    "unit-mongol-horse-archer",
+    "unit-mongol-scout",
+  ];
+  const defs = ids.map((id) => {
+    const found = heroDatabase.find((definition) => definition.id === id);
+    if (!found) throw new Error(`Missing adventure unit ${id}`);
+    return found;
+  });
   const heroes = new Map<string, Hero>();
   const slots: FormationSlot[] = defs.map((definition, index) => {
     const instanceId = `adventure-ai-${definition.id}`;

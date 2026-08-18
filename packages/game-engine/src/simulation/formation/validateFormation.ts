@@ -1,4 +1,5 @@
-import type { Formation, HeroClass } from "@battle-formation/shared-types";
+import type { Formation, HeroClass, HeroDefinition } from "@battle-formation/shared-types";
+import { squadErrors, UNIT_COUNT } from "../army/squad";
 
 export interface FormationValidationResult {
   valid: boolean;
@@ -7,7 +8,7 @@ export interface FormationValidationResult {
   warnings: string[];
 }
 
-const REQUIRED_HERO_COUNT = 6;
+const REQUIRED_HERO_COUNT = 1 + UNIT_COUNT;
 
 const FRONT_ROW_CLASSES: ReadonlySet<HeroClass> = new Set(["tank", "knight", "commander"]);
 const BACK_ROW_CLASSES: ReadonlySet<HeroClass> = new Set([
@@ -24,7 +25,7 @@ const BACK_ROW_CLASSES: ReadonlySet<HeroClass> = new Set([
  */
 export function validateFormation(
   formation: Formation,
-  classByInstanceId?: Map<string, HeroClass>
+  definitionByInstanceId?: Map<string, HeroDefinition>
 ): FormationValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -49,9 +50,9 @@ export function validateFormation(
       );
     }
 
-    const heroClass = classByInstanceId?.get(instanceId);
+    const definition = definitionByInstanceId?.get(instanceId);
+    const heroClass = definition?.class;
     if (heroClass) {
-      // row 1 = front (nearest centerline), row 0 = back
       if (row === 1 && BACK_ROW_CLASSES.has(heroClass)) {
         warnings.push(`${heroClass} is usually better in the back row`);
       }
@@ -63,8 +64,23 @@ export function validateFormation(
 
   if (formation.slots.length !== REQUIRED_HERO_COUNT) {
     errors.push(
-      `Formation must have exactly ${REQUIRED_HERO_COUNT} heroes placed (has ${formation.slots.length})`
+      `Formation must have exactly ${REQUIRED_HERO_COUNT} fighters placed (has ${formation.slots.length})`
     );
+  }
+
+  if (definitionByInstanceId) {
+    const defs = formation.slots
+      .map((slot) => definitionByInstanceId.get(slot.instanceId))
+      .filter((definition): definition is HeroDefinition => definition != null);
+    if (defs.length !== formation.slots.length) {
+      errors.push("Formation references an unknown fighter");
+    } else {
+      const commander = defs.find((definition) => definition.role === "commander");
+      const units = defs.filter((definition) => definition.role === "unit");
+      const factions = [...new Set(defs.map((definition) => definition.faction))];
+      const ally = factions.find((faction) => faction !== commander?.faction) ?? null;
+      errors.push(...squadErrors(commander, units, ally));
+    }
   }
 
   return { valid: errors.length === 0, errors, warnings };

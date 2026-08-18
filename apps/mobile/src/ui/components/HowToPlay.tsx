@@ -4,18 +4,18 @@ import { Panel } from "./Panel";
 const STEPS = [
   {
     n: "1",
-    title: "Build a squad of 6",
-    body: "Pick tanks up front, damage and healers in the back.",
+    title: "Choose a Commander",
+    body: "One legendary leader. Their empire is your core.",
   },
   {
     n: "2",
-    title: "Place them in 20 seconds",
-    body: "Drag onto YOUR bottom grid. Confirm — then they fight alone.",
+    title: "Mix two factions",
+    body: "Fill five soldier slots from the Commander’s army plus one ally empire.",
   },
   {
     n: "3",
-    title: "Watch HP and skills",
-    body: "Bars drain, numbers float, abilities flash. Wipe the enemy team to win.",
+    title: "Place, then they fight",
+    body: "20 seconds on the grid. Front = wall. Back = kill. Then they fight alone.",
   },
 ] as const;
 
@@ -28,8 +28,8 @@ export function HowToPlay({ compact = false }: HowToPlayProps) {
   return (
     <Panel title="How you play">
       <Text className="mb-3 text-sm leading-5 text-muted">
-        Battle Formation is a short online auto-battler. You never control the fight —
-        you win by who you bring and where you stand them.
+        Battle Formation is a short online auto-battler. You win by Commander, faction mix, and
+        where they stand — never by tapping during the fight.
       </Text>
       <View className={compact ? "gap-2" : "gap-3"}>
         {STEPS.map((step) => (

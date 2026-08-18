@@ -1,6 +1,7 @@
 import type { Ability, BattleEvent, BattleResult, Formation, Hero, PlayerSide } from "@battle-formation/shared-types";
 import { TEAM_POWER_ATTACK_WEIGHT } from "@battle-formation/shared-types";
 import { createRng } from "../rng";
+import { applyArmyDoctrine } from "../army/doctrine";
 import { MAX_TICKS, MOVEMENT_STEP_COST, TICK_RATE } from "./constants";
 import { calculateDamage } from "./DamageCalculator";
 import { HeroEntity } from "./HeroEntity";
@@ -57,9 +58,11 @@ export class BattleManager {
     private readonly skills: SkillManager = new SkillManager()
   ) {
     this.rng = createRng(seed);
+    const empoweredA = applyArmyDoctrine(formationA, heroesByInstanceId);
+    const empoweredB = applyArmyDoctrine(formationB, empoweredA);
     this.entities = [
-      ...this.buildEntities(formationA, "playerA", heroesByInstanceId),
-      ...this.buildEntities(formationB, "playerB", heroesByInstanceId),
+      ...this.buildEntities(formationA, "playerA", empoweredB),
+      ...this.buildEntities(formationB, "playerB", empoweredB),
     ];
   }
 

@@ -34,6 +34,7 @@ export class AuthService {
     if (!player || !(await bcrypt.compare(password, player.passwordHash))) {
       throw new UnauthorizedException("Invalid credentials");
     }
+    await this.heroes.grantStarterRoster(player.id);
     return this.issueSession(player);
   }
 

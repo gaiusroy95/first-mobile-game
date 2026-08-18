@@ -6,7 +6,7 @@ import { useBattleStore } from "../../state/battleStore";
 import { usePlayerStore } from "../../state/playerStore";
 import { useMatchStore } from "../../state/matchStore";
 import { ScreenContainer } from "../components/ScreenContainer";
-import { PrimaryButton } from "../components/PrimaryButton";
+import { HudBackButton } from "../components/HudBackButton";
 import { Panel } from "../components/Panel";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Victory">;
@@ -49,7 +49,7 @@ export function VictoryScreen({ navigation }: Props) {
   }, [navigation, reset, clearMatch]);
 
   return (
-    <ScreenContainer>
+    <ScreenContainer onBack={handleContinue} backLabel="Return to camp">
       <View className="flex-1 items-center justify-center gap-5">
         <View className="items-center">
           <Text className="text-xs font-bold uppercase tracking-[0.2em] text-muted">
@@ -91,10 +91,8 @@ export function VictoryScreen({ navigation }: Props) {
             ))}
           </Panel>
         ) : null}
-      </View>
 
-      <View className="gap-2 pb-2">
-        <PrimaryButton label="Back to lobby" onPress={handleContinue} />
+        <HudBackButton onPress={handleContinue} label="Return to camp" size={64} />
       </View>
     </ScreenContainer>
   );

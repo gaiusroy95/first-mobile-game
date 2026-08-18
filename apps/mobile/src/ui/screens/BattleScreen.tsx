@@ -8,8 +8,11 @@ import { useBattleStore } from "../../state/battleStore";
 import { useMatchStore } from "../../state/matchStore";
 import { submitFormation } from "../../api/endpoints/battles";
 import { GameContainer, type GameContainerHandle } from "../../game/GameContainer";
-import { useFormationStore, SQUAD_SIZE } from "../../state/formationStore";
+import { pickDefaultSquad, SQUAD_SIZE, squadInstanceIds } from "@battle-formation/game-engine";
+import { getHeroDefinition } from "../../state/heroCatalog";
+import { useFormationStore } from "../../state/formationStore";
 import { ScreenContainer } from "../components/ScreenContainer";
+import { HudBackButton } from "../components/HudBackButton";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Battle">;
 
@@ -25,10 +28,11 @@ export function BattleScreen({ navigation }: Props) {
   const formationDeadline = useMatchStore((state) => state.formationDeadline);
   const setWaitingForOpponent = useMatchStore((state) => state.setWaitingForOpponent);
   const setBattleResult = useMatchStore((state) => state.setBattleResult);
+  const clearMatch = useMatchStore((state) => state.clearMatch);
   const setResult = useBattleStore((state) => state.setResult);
   const selectedInstanceIds = useFormationStore((state) => state.selectedInstanceIds);
   const [phase, setPhase] = useState<"prep" | "waiting" | "fight">("prep");
-  const [status, setStatus] = useState("Drag 6 heroes onto your grid. Front = tanks. Back = damage.");
+  const [status, setStatus] = useState("Place your Commander and five soldiers. Front = wall. Back = kill.");
   const startedRef = useRef(false);
   const playedResultRef = useRef(false);
 
@@ -42,11 +46,19 @@ export function BattleScreen({ navigation }: Props) {
     if (!matchId || !localSide || roster.length === 0 || startedRef.current) return;
     startedRef.current = true;
     const localHeroes = roster.filter((hero) => hero.side === localSide);
-    const picked =
-      selectedInstanceIds.length === SQUAD_SIZE
-        ? localHeroes.filter((hero) => selectedInstanceIds.includes(hero.instanceId))
-        : localHeroes.slice(0, SQUAD_SIZE);
-    const squad = picked.length === SQUAD_SIZE ? picked : localHeroes.slice(0, SQUAD_SIZE);
+    const saved = selectedInstanceIds.length === SQUAD_SIZE
+      ? localHeroes.filter((hero) => selectedInstanceIds.includes(hero.instanceId))
+      : [];
+    const fallback = pickDefaultSquad(
+      localHeroes.map((hero) => ({ instanceId: hero.instanceId, heroId: hero.definition.id })),
+      (heroId) =>
+        localHeroes.find((hero) => hero.definition.id === heroId)?.definition ?? getHeroDefinition(heroId)
+    );
+    const fallbackIds = fallback ? squadInstanceIds(fallback) : localHeroes.slice(0, SQUAD_SIZE).map((h) => h.instanceId);
+    const squad =
+      saved.length === SQUAD_SIZE
+        ? saved
+        : localHeroes.filter((hero) => fallbackIds.includes(hero.instanceId));
     const opponents = roster.filter((hero) => hero.side !== localSide);
     const remainingSeconds = formationDeadline
       ? Math.max(8, Math.ceil((Date.parse(formationDeadline) - Date.now()) / 1000))
@@ -90,19 +102,27 @@ export function BattleScreen({ navigation }: Props) {
     navigation.replace("Victory");
   };
 
+  const leaveBattle = () => {
+    clearMatch();
+    navigation.replace("Lobby");
+  };
+
   const phaseLabel =
     phase === "prep" ? "Preparation · 20s" : phase === "waiting" ? "Waiting" : "Auto-battle";
 
   return (
     <ScreenContainer padded={false}>
-      <View className="border-b border-border bg-surface px-5 py-3">
-        <Text className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
-          {phaseLabel}
-        </Text>
-        <Text className="mt-1 text-base font-semibold text-ink">{status}</Text>
-        {waitingForOpponent ? (
-          <Text className="mt-1 text-xs text-muted">You can still watch your locked board.</Text>
-        ) : null}
+      <View className="flex-row items-start gap-3 border-b border-border bg-surface px-4 py-3">
+        <HudBackButton onPress={leaveBattle} label="Retreat to lobby" />
+        <View className="flex-1">
+          <Text className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
+            {phaseLabel}
+          </Text>
+          <Text className="mt-1 text-base font-semibold text-ink">{status}</Text>
+          {waitingForOpponent ? (
+            <Text className="mt-1 text-xs text-muted">You can still watch your locked board.</Text>
+          ) : null}
+        </View>
       </View>
       <View style={{ flex: 1, minHeight: 0 }}>
         <GameContainer

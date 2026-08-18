@@ -109,7 +109,7 @@ export class MatchmakingService implements OnModuleInit {
 
   private async ensurePracticeBot(): Promise<string> {
     const bot = await this.players.ensurePracticeBot(PRACTICE_BOT_USERNAME, "Training Bot");
-    await this.heroes.grantStarterRoster(bot.id);
+    await this.heroes.grantStarterRoster(bot.id, "bot");
     return bot.id;
   }
 
