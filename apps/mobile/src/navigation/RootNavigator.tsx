@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { SplashScreen } from "../ui/screens/SplashScreen";
 import { LoginScreen } from "../ui/screens/LoginScreen";
 import { LobbyScreen } from "../ui/screens/LobbyScreen";
 import { ModesScreen } from "../ui/screens/ModesScreen";
@@ -13,7 +14,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   return (
-    <Stack.Navigator initialRouteName="Login" screenOptions={{ headerShown: false }}>
+    <Stack.Navigator initialRouteName="Splash" screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Lobby" component={LobbyScreen} />
       <Stack.Screen name="Modes" component={ModesScreen} />
