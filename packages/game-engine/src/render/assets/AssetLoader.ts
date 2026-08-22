@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import { EFFECT_SPRITES, HERO_SPRITES, SOUNDS, UI_SPRITES, type SpriteAssetEntry } from "./AssetManifest";
+import { EFFECT_SPRITES, HERO_PORTRAITS, HERO_SPRITES, SOUNDS, UI_SPRITES, type SpriteAssetEntry } from "./AssetManifest";
 import { ensurePlaceholderTexture, shapeForHeroKey } from "./PlaceholderFactory";
 
 /**
@@ -13,6 +13,7 @@ import { ensurePlaceholderTexture, shapeForHeroKey } from "./PlaceholderFactory"
  */
 export function preloadAssets(scene: Phaser.Scene): void {
   for (const entry of Object.values(HERO_SPRITES)) preloadSprite(scene, entry);
+  for (const entry of Object.values(HERO_PORTRAITS)) preloadSprite(scene, entry);
   for (const entry of Object.values(EFFECT_SPRITES)) preloadSprite(scene, entry);
   for (const entry of UI_SPRITES) preloadSprite(scene, entry);
 
@@ -48,6 +49,7 @@ function preloadSprite(scene: Phaser.Scene, entry: SpriteAssetEntry): void {
  */
 export function generatePlaceholders(scene: Phaser.Scene): void {
   for (const entry of Object.values(HERO_SPRITES)) generateIfMissing(scene, entry);
+  for (const entry of Object.values(HERO_PORTRAITS)) generateIfMissing(scene, entry);
   for (const entry of Object.values(EFFECT_SPRITES)) generateIfMissing(scene, entry);
   for (const entry of UI_SPRITES) generateIfMissing(scene, entry);
 }

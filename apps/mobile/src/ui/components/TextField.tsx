@@ -19,7 +19,7 @@ export function TextField({
 }: TextFieldProps) {
   return (
     <View className="w-full">
-      <Text className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-muted">
+      <Text className="mb-1.5 font-heading text-[10px] uppercase tracking-[0.16em] text-accent/80">
         {label}
       </Text>
       <TextInput
@@ -30,7 +30,7 @@ export function TextField({
         secureTextEntry={secureTextEntry}
         autoCapitalize={autoCapitalize}
         autoCorrect={false}
-        className="rounded-2xl border border-border bg-surface-raised px-4 py-3.5 text-ink"
+        className="rounded-2xl border border-accent/30 bg-surface-raised/90 px-4 py-3.5 text-ink"
       />
     </View>
   );

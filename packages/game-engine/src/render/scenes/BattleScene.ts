@@ -2,8 +2,16 @@ import Phaser from "phaser";
 import type { BattleEvent, Formation, HeroClass, HeroDefinition, PlayerSide } from "@battle-formation/shared-types";
 import { TICK_RATE } from "../../simulation/battle/constants";
 import { coordinateToSlot } from "../../simulation/formation/grid";
+import { LEGACY_HERO_ALIASES } from "../../simulation/heroes";
 import { GridManager } from "../systems/GridManager";
-import { HERO_SPRITES, EFFECT_SPRITES, createHeroAnimations, generatePlaceholders, preloadAssets } from "../assets";
+import {
+  HERO_SPRITES,
+  HERO_PORTRAITS,
+  EFFECT_SPRITES,
+  createHeroAnimations,
+  generatePlaceholders,
+  preloadAssets,
+} from "../assets";
 import { SoundManager } from "../assets";
 
 interface UnitView {
@@ -16,7 +24,7 @@ interface UnitView {
   currentHp: number;
 }
 
-const TOKEN_SIZE = 48;
+const TOKEN_SIZE = 56;
 /** Playback speed: real ms per simulated tick. */
 const MS_PER_TICK = 1000 / TICK_RATE;
 
@@ -42,6 +50,7 @@ export class BattleScene extends Phaser.Scene {
   private heroCatalog: HeroDefinition[] = [];
   private sideByInstanceId = new Map<string, PlayerSide>();
   private classByInstanceId = new Map<string, HeroClass>();
+  private heroIdByInstanceId = new Map<string, string>();
   private units = new Map<string, UnitView>();
   private grid?: GridManager;
   private sounds?: SoundManager;
@@ -98,6 +107,10 @@ export class BattleScene extends Phaser.Scene {
 
   setClassLookup(classByInstanceId: Map<string, HeroClass>): void {
     this.classByInstanceId = classByInstanceId;
+  }
+
+  setHeroIdLookup(heroIdByInstanceId: Map<string, string>): void {
+    this.heroIdByInstanceId = heroIdByInstanceId;
   }
 
   setLocalSide(side: PlayerSide): void {
@@ -197,7 +210,8 @@ export class BattleScene extends Phaser.Scene {
     const slot = coordinateToSlot(event.col as 0 | 1 | 2, event.row as 0 | 1);
     const { x, y } = this.grid.getSlotPosition(side, slot);
 
-    const sprite = this.add.sprite(0, 0, HERO_SPRITES[heroClass].key);
+    const sprite = this.add.sprite(0, 0, this.resolveSpriteKey(instanceId, heroClass));
+    sprite.setDisplaySize(TOKEN_SIZE + 4, TOKEN_SIZE + 4);
     const short = CLASS_LABEL[heroClass] ?? heroClass.slice(0, 3).toUpperCase();
     const label = this.add
       .text(0, 18, short, {
@@ -212,7 +226,7 @@ export class BattleScene extends Phaser.Scene {
     const maxHp = Math.max(1, event.maxHp ?? 1);
     this.drawHpBar(hpBar, 1);
 
-    const ring = this.add.circle(0, 0, 26, side === "playerA" ? 0xc45c26 : 0x3d5a80, 0.18);
+    const ring = this.add.circle(0, 0, TOKEN_SIZE / 2 + 4, side === "playerA" ? 0xc45c26 : 0x3d5a80, 0.18);
     ring.setStrokeStyle(2, side === this.localSide ? 0xd4a84b : 0x94a3b8, 0.85);
 
     const container = this.add.container(x, y, [ring, sprite, hpBar, label]);
@@ -226,6 +240,14 @@ export class BattleScene extends Phaser.Scene {
       maxHp,
       currentHp: maxHp,
     });
+  }
+
+  /** Real portrait for this hero id if one exists, else the class placeholder shape - same fallback shape AssetLoader already applies at the texture-cache level. */
+  private resolveSpriteKey(instanceId: string, heroClass: HeroClass): string {
+    const heroId = this.heroIdByInstanceId.get(instanceId);
+    const resolvedId = heroId ? (LEGACY_HERO_ALIASES[heroId] ?? heroId) : undefined;
+    const portrait = resolvedId ? HERO_PORTRAITS[resolvedId] : undefined;
+    return portrait?.key ?? HERO_SPRITES[heroClass].key;
   }
 
   private moveUnit(instanceId: string, toCol: number, toRow: number): void {
@@ -375,6 +397,13 @@ export class BattleScene extends Phaser.Scene {
     if (!this.grid) return;
     const w = this.scale.width;
     const h = this.scale.height;
+
+    // Moody night-battlefield gradient wash, dark at the edges, a faint
+    // warm glow along the center clash line - replaces the old flat fill.
+    const backdrop = this.add.graphics();
+    backdrop.fillGradientStyle(0x120c14, 0x120c14, 0x1c130f, 0x1c130f, 1);
+    backdrop.fillRect(0, 0, w, h);
+    backdrop.setDepth(-1);
 
     // Atmosphere bands
     this.add.rectangle(w / 2, h * 0.28, w, h * 0.42, 0x1a1018, 0.55);

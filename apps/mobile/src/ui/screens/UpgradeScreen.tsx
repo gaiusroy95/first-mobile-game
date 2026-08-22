@@ -42,8 +42,8 @@ export function UpgradeScreen({ navigation, route }: Props) {
   if (!selected) {
     return (
       <ScreenContainer onBack={() => navigation.goBack()} backLabel="Return to lobby">
-        <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Grow stronger</Text>
-        <Text className="mb-4 mt-1 text-2xl font-bold text-ink">Upgrade heroes</Text>
+        <Text className="text-xs font-heading uppercase tracking-[0.16em] text-accent">Grow stronger</Text>
+        <Text className="mb-4 mt-1 text-2xl font-display text-ink">Upgrade heroes</Text>
         <FlatList
           data={ownedHeroes}
           keyExtractor={(hero) => hero.instanceId}
@@ -88,8 +88,8 @@ export function UpgradeScreen({ navigation, route }: Props) {
     >
       <View className="mb-4 flex-row items-center justify-between">
         <View>
-          <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Grow stronger</Text>
-          <Text className="mt-1 text-2xl font-bold text-ink">Upgrade heroes</Text>
+          <Text className="text-xs font-heading uppercase tracking-[0.16em] text-accent">Grow stronger</Text>
+          <Text className="mt-1 text-2xl font-display text-ink">Upgrade heroes</Text>
         </View>
         <View className="items-end gap-1">
           <CurrencyBadge amount={gold} />

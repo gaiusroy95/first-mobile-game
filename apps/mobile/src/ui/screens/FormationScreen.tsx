@@ -51,8 +51,8 @@ export function FormationScreen({ navigation }: Props) {
     <ScreenContainer onBack={() => navigation.goBack()} backLabel="Return to lobby">
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24, gap: 16 }}>
         <View>
-          <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">War council</Text>
-          <Text className="mt-1 text-2xl font-bold text-ink">Commander + two empires</Text>
+          <Text className="text-xs font-heading uppercase tracking-[0.16em] text-accent">War council</Text>
+          <Text className="mt-1 text-2xl font-display text-ink">Commander + two empires</Text>
           <Text className="mt-2 text-sm leading-5 text-muted">
             Pick your leader, mix soldiers from their faction and one ally, then place them in the
             20-second prep. Same-faction troops swear an Oathbound bonus. Where you stand the

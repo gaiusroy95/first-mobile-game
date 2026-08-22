@@ -25,8 +25,8 @@ export function CollectionScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer onBack={() => navigation.goBack()} backLabel="Return to lobby">
-      <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Roster</Text>
-      <Text className="mb-1 mt-1 text-2xl font-bold text-ink">Hero collection</Text>
+      <Text className="text-xs font-heading uppercase tracking-[0.16em] text-accent">Roster</Text>
+      <Text className="mb-1 mt-1 text-2xl font-display text-ink">Hero collection</Text>
       <Text className="mb-4 text-sm text-muted">
         These are your fighters. Unlock more with hero cards earned from matches.
       </Text>

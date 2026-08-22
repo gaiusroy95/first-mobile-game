@@ -14,6 +14,7 @@ export class PhaserGame {
   private battleScene?: BattleScene;
   private sideByInstanceId = new Map<string, PlayerSide>();
   private classByInstanceId = new Map<string, import("@battle-formation/shared-types").HeroClass>();
+  private heroIdByInstanceId = new Map<string, string>();
 
   constructor(onReady: () => void) {
     this.game = new Phaser.Game({
@@ -60,6 +61,11 @@ export class PhaserGame {
     this.battleScene?.setClassLookup(classByInstanceId);
   }
 
+  setHeroIdLookup(heroIdByInstanceId: Map<string, string>): void {
+    this.heroIdByInstanceId = heroIdByInstanceId;
+    this.battleScene?.setHeroIdLookup(heroIdByInstanceId);
+  }
+
   setFormation(formations: [Formation, Formation]): void {
     this.battleScene?.setFormation(formations);
   }
@@ -71,6 +77,7 @@ export class PhaserGame {
     this.battleScene = battle;
     battle.setSideLookup(this.sideByInstanceId);
     battle.setClassLookup(this.classByInstanceId);
+    battle.setHeroIdLookup(this.heroIdByInstanceId);
     battle.setLocalSide(localSide);
     battle.playEvents(events, onComplete);
   }

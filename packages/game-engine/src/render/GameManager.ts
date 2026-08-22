@@ -75,6 +75,9 @@ export class GameManager {
     this.phaserGame.setClassLookup(
       new Map(heroes.map((rosterHero) => [rosterHero.instanceId, rosterHero.definition.class]))
     );
+    this.phaserGame.setHeroIdLookup(
+      new Map(heroes.map((rosterHero) => [rosterHero.instanceId, rosterHero.definition.id]))
+    );
   }
 
   private startBattle(seed: number): void {

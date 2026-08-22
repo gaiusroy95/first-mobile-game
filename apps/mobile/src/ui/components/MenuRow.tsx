@@ -13,12 +13,12 @@ export function MenuRow({ title, subtitle, onPress, disabled }: MenuRowProps) {
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className={`flex-row items-center justify-between rounded-2xl border border-border bg-surface-raised px-4 py-3.5 active:opacity-80 ${
+      className={`flex-row items-center justify-between rounded-2xl border border-accent/25 bg-surface-raised/90 px-4 py-3.5 active:opacity-80 ${
         disabled ? "opacity-40" : ""
       }`}
     >
       <View className="flex-1 pr-3">
-        <Text className="text-base font-semibold text-white">{title}</Text>
+        <Text className="font-heading text-base text-white">{title}</Text>
         <Text className="mt-0.5 text-xs text-muted">{subtitle}</Text>
       </View>
       <Text className="text-lg text-accent">›</Text>

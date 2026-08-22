@@ -16,6 +16,11 @@ module.exports = {
         success: "#3d9a6a",
         border: "#2a3a32",
       },
+      fontFamily: {
+        display: ["Cinzel_700Bold"],
+        "display-black": ["Cinzel_900Black"],
+        heading: ["Cinzel_600SemiBold"],
+      },
     },
   },
   plugins: [],

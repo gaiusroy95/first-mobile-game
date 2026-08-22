@@ -1,9 +1,10 @@
 import Phaser from "phaser";
 import type { HeroClass, PlayerSide, RosterHero } from "@battle-formation/shared-types";
 import { allSlots } from "../../simulation/formation";
+import { LEGACY_HERO_ALIASES } from "../../simulation/heroes";
 import { GridManager } from "./GridManager";
 import { PositionManager } from "./PositionManager";
-import { HERO_SPRITES } from "../assets";
+import { HERO_SPRITES, HERO_PORTRAITS } from "../assets";
 
 interface HeroToken {
   instanceId: string;
@@ -39,7 +40,10 @@ export class HeroPlacement {
     this.destroyTokens();
     roster.forEach(({ instanceId, definition }, index) => {
       const x = 30 + index * (TOKEN_SIZE + 8);
-      this.tokens.set(instanceId, this.createToken(instanceId, definition.name, definition.class, x, benchY));
+      this.tokens.set(
+        instanceId,
+        this.createToken(instanceId, definition.name, definition.id, definition.class, x, benchY)
+      );
     });
   }
 
@@ -66,12 +70,20 @@ export class HeroPlacement {
     this.snapTokensToPositions();
   }
 
-  private createToken(instanceId: string, name: string, heroClass: HeroClass, x: number, y: number): HeroToken {
-    // Whatever texture is behind this key - real sprite or (today, always)
-    // a generated placeholder circle - is resolved once by FormationScene
-    // before any token is created; this line never changes when real art
-    // replaces the placeholder.
-    const sprite = this.scene.add.sprite(0, 0, HERO_SPRITES[heroClass].key);
+  private createToken(
+    instanceId: string,
+    name: string,
+    heroId: string,
+    heroClass: HeroClass,
+    x: number,
+    y: number
+  ): HeroToken {
+    // Real portrait for this specific hero id if art exists, else the
+    // class placeholder shape - same fallback BattleScene uses.
+    const resolvedId = LEGACY_HERO_ALIASES[heroId] ?? heroId;
+    const textureKey = HERO_PORTRAITS[resolvedId]?.key ?? HERO_SPRITES[heroClass].key;
+    const sprite = this.scene.add.sprite(0, 0, textureKey);
+    sprite.setDisplaySize(TOKEN_SIZE, TOKEN_SIZE);
     const label = this.scene.add
       .text(0, 0, name.slice(0, 2).toUpperCase(), { fontSize: "12px", color: "#ffffff" })
       .setOrigin(0.5);

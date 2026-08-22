@@ -82,8 +82,8 @@ export function ModesScreen({ navigation }: Props) {
     <ScreenContainer onBack={() => navigation.goBack()} backLabel="Return to lobby">
       <ScrollView className="flex-1" contentContainerStyle={{ gap: 16, paddingBottom: 24 }}>
         <View>
-          <Text className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Play</Text>
-          <Text className="mt-1 text-2xl font-bold text-ink">Game modes</Text>
+          <Text className="text-xs font-heading uppercase tracking-[0.16em] text-accent">Play</Text>
+          <Text className="mt-1 text-2xl font-display text-ink">Game modes</Text>
           <Text className="mt-2 text-sm leading-5 text-muted">
             Same battlefield rules everywhere — different ways to queue and earn rewards.
           </Text>
